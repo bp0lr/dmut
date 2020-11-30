@@ -203,7 +203,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 	//}
 
 	//result, err := resolver.LookupIP(domain)
-	result, err := resolver.getDNSQueryResponse(5, domain, "8.8.8.8")
+	result, err := resolver.GetDNSQueryResponse(5, domain, "8.8.8.8")
 	
 	if err != nil {
 		//fmt.Printf("error %v is invalid", domain)

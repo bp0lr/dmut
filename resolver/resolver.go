@@ -7,7 +7,8 @@ import (
 	"github.com/miekg/dns"
 )
 
-func getDNSQueryResponse(queryType, fqdn, dnsServer string) ([]string, error) {
+//GetDNSQueryResponse desc
+func GetDNSQueryResponse(queryType, fqdn, dnsServer string) ([]string, error) {
 	qt, ok := dns.StringToType[queryType]
 	if !ok {
 		return nil, fmt.Errorf("Query type '%s' is an unknown type", queryType)
@@ -30,7 +31,7 @@ func getDNSQueryResponse(queryType, fqdn, dnsServer string) ([]string, error) {
 	}
 
 	for _, a := range in.Answer {
-		r, err := formatDNSAnswer(a)
+		r, err := FormatDNSAnswer(a)
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +45,8 @@ func getDNSQueryResponse(queryType, fqdn, dnsServer string) ([]string, error) {
 	return responses, nil
 }
 
-func formatDNSAnswer(a interface{}) (r []string, err error) {
+//FormatDNSAnswer desc
+func FormatDNSAnswer(a interface{}) (r []string, err error) {
 	switch a.(type) {
 	case *dns.A:
 		r = []string{a.(*dns.A).A.String()}
