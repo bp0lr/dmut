@@ -241,9 +241,9 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		}
 	}
 	
-	if(verboseArg){
+	//if(verboseArg){
 		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
-	}
+	//}
 	
 	jobs := make(chan string)
 	var wg sync.WaitGroup
@@ -293,15 +293,24 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 	for _, qtype := range qtypes {
 		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer)
 		if err == nil  && len(result) > 0{
+
+			for i := range result {
+				result[i] = strings.TrimSpace(result[i])
+			}
+			justString := strings.Join(result,"")
+			
 			if outputFileArg != "" {
-				if(ipArg){
-					justString := strings.Join(result," ")
-					outputFile.WriteString(domain + ":" + justString + "\n")
+				if(ipArg){				
+					outputFile.WriteString(domain + justString + "\n")
 				} else {
 					outputFile.WriteString(domain + "\n")
 				}
 			}	
-			fmt.Printf("[VALID] %v : %v\n", domain, result)
+			if(ipArg){
+				fmt.Printf("[VALID] %v%v\n", domain, justString)
+			}else{
+				fmt.Printf("%v\n", domain)
+			}
 			break
 		}
 	}	
@@ -317,7 +326,7 @@ func insert(a []string, index int, value string) []string {
 }
 
 func downloadResolverList() error{
-	
+		
 	out, err := os.Create("resolvers.txt")
 	if err != nil {
 		return err
