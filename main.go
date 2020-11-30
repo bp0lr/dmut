@@ -34,6 +34,7 @@ var (
 	updateDNSArg		bool
 	dnsServers 			[]string
 	ipArg				bool
+	simulateArg			bool
 )
 
 //jobL desc
@@ -57,6 +58,7 @@ func main() {
 	flag.StringVarP(&dnsArg, "dnsServers", "l", "", "Use this dns server list separated by ,")
 	flag.BoolVar(&updateDNSArg, "update-dnslist", false, "Use this dns server list separated by ,")
 	flag.BoolVar(&ipArg, "show-ip", false, "Display info for valid results")
+	flag.BoolVar(&simulateArg, "simulate", false, "Display info about the job without run it")
 	
 	flag.Parse()
 
@@ -75,6 +77,10 @@ func main() {
 	workers := 25
 	if workersArg > 0  && workersArg < 100 {
 		workers = workersArg
+	}
+
+	if(verboseArg){
+		fmt.Printf("[+] Workers: %v\n", workers)
 	}
 
 	if(len(dnsFileArg) > 0){
@@ -112,10 +118,6 @@ func main() {
 		}
 	}
 
-	if(verboseArg){
-		fmt.Printf("workers: %v\n", workers)
-	}
-
 	var outputFile *os.File
 	var err0 error
 	if outputFileArg != "" {
@@ -151,8 +153,7 @@ func main() {
 				os.Remove(outputFileArg)
 			}
 		}
-	}
-	
+	}	
 }
 
 func processDomain(workers int, domain string, alterations [] string, outputFile *os.File){
@@ -241,9 +242,13 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		}
 	}
 	
-	//if(verboseArg){
+	if(verboseArg){
 		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
-	//}
+	}
+
+	if(simulateArg){
+		return
+	}
 	
 	jobs := make(chan string)
 	var wg sync.WaitGroup
