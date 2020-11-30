@@ -20,7 +20,7 @@ import (
 	
 	//"encoding/json"
 
-	resolver	github.com/bp0lr/dmut/resolve
+	resolver	"github.com/bp0lr/dmut/resolver"
 
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -177,13 +177,6 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 
 	fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
 	
-	resolver, err := goresolver.NewResolver("/etc/resolv.conf")
-	if err != nil {
-		fmt.Printf("Cannot initialize the local resolver: %s\n", err)
-		os.Exit(1)
-	}
-
-
 	//jobs := make(chan string)
 	var wg sync.WaitGroup
 
@@ -193,7 +186,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 			for _, task := range job.tasks {			
 				fullDomain:= task + "." + job.sld + "." + job.tld + "."
 				fmt.Printf("working on %v\n", fullDomain)
-				processDNS(&wg, fullDomain, outputFile, resolver)
+				processDNS(&wg, fullDomain, outputFile)
 			}
 	//		wg.Done()			
 	//	}()
@@ -203,14 +196,14 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	//wg.Wait()
 }
 
-func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, resolver *goresolver.Resolver) {
+func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 
 	//if verboseArg {
 		fmt.Printf("[+] Testing: %v\n", domain)
 	//}
 
 	//result, err := resolver.LookupIP(domain)
-	result, err := resolver.StrictNSQuery(domain, 5)
+	result, err := resolver.getDNSQueryResponse(5, domain, "8.8.8.8")
 	
 	if err != nil {
 		//fmt.Printf("error %v is invalid", domain)
