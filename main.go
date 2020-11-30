@@ -5,9 +5,11 @@
 package main
 
 import (
+	"io"
 	"os"
 	"fmt"
 	"sync"
+	"net/http"
 	"time"
 	"bufio"
 	"io/ioutil"
@@ -29,7 +31,9 @@ var (
 	dnsFileArg			string
 	dnsArg				string
 	verboseArg        	bool
+	updateDNSArg		bool
 	dnsServers 			[]string
+	ipArg				bool
 )
 
 //jobL desc
@@ -45,14 +49,27 @@ func main() {
 	var alterations []string
 
 	flag.IntVarP(&workersArg, "workers", "w", 25, "Workers amount")
-	flag.StringVarP(&urlArg, "url", "u", "", "The firebase url to test")
+	flag.StringVarP(&urlArg, "url", "u", "", "Single url to test")
 	flag.BoolVarP(&verboseArg, "verbose", "v", false, "Display extra info about what is going on")
 	flag.StringVarP(&mutationsDic, "dic", "d", "", "Dictionary file containing mutation list")
 	flag.StringVarP(&outputFileArg, "output", "o", "", "Output file to save the results to")
 	flag.StringVarP(&dnsFileArg, "dnsFile", "s", "", "Use this dns server list from file")
 	flag.StringVarP(&dnsArg, "dnsServers", "l", "", "Use this dns server list separated by ,")
+	flag.BoolVar(&updateDNSArg, "update-dnslist", false, "Use this dns server list separated by ,")
+	flag.BoolVar(&ipArg, "show-ip", false, "Display info for valid results")
 	
 	flag.Parse()
+
+
+	if(updateDNSArg){
+		err:=downloadResolverList()
+		if(err != nil){
+			fmt.Printf("[-] Error: %v\n", err)
+		}else{
+			fmt.Printf("[+] File downloaded successfully\n")
+		}
+		return
+	}
 
 	//concurrency
 	workers := 25
@@ -125,6 +142,17 @@ func main() {
 	for _, value := range jobs {
 		processDomain(workers, value, alterations, outputFile)
 	}
+
+	//if we didn't found anything, delete the result file.
+	if(len(outputFileArg) > 0){
+		fi, err := os.Stat(outputFileArg)
+		if err == nil {
+			if(fi.Size() == 0){
+				os.Remove(outputFileArg)
+			}
+		}
+	}
+	
 }
 
 func processDomain(workers int, domain string, alterations [] string, outputFile *os.File){
@@ -264,9 +292,14 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 
 	for _, qtype := range qtypes {
 		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer)
-		if err == nil {
+		if err == nil  && len(result) > 0{
 			if outputFileArg != "" {
-				outputFile.WriteString(domain + "\n")
+				if(ipArg){
+					justString := strings.Join(result," ")
+					outputFile.WriteString(domain + ":" + justString + "\n")
+				} else {
+					outputFile.WriteString(domain + "\n")
+				}
 			}	
 			fmt.Printf("[VALID] %v : %v\n", domain, result)
 			break
@@ -281,4 +314,26 @@ func insert(a []string, index int, value string) []string {
     a = append(a[:index+1], a[index:]...) // index < len(a)
     a[index] = value
     return a
+}
+
+func downloadResolverList() error{
+	
+	out, err := os.Create("resolvers.txt")
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	resp, err := http.Get("https://raw.githubusercontent.com/janmasarik/resolvers/master/resolvers.txt")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -3,6 +3,7 @@ package resolver
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/miekg/dns"
 )
@@ -36,7 +37,7 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) ([]str
 			return nil, err
 		}
 		for _, rp := range r {
-			responses = append(responses, rp)
+			responses = append(responses, ":"+strings.TrimSpace(rp))
 		}
 	}
 
