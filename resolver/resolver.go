@@ -1,13 +1,16 @@
 package resolver
 
 import (
+	"fmt"
+	"sort"
+
 	"github.com/miekg/dns"
 )
 
 func getDNSQueryResponse(queryType, fqdn, dnsServer string) ([]string, error) {
 	qt, ok := dns.StringToType[queryType]
 	if !ok {
-		return nil, fmt.Errorf("Query type '%s' is an unknown type.", queryType)
+		return nil, fmt.Errorf("Query type '%s' is an unknown type", queryType)
 	}
 
 	m := new(dns.Msg)
