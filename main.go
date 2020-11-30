@@ -20,7 +20,7 @@ import (
 	
 	//"encoding/json"
 
-	resolver	"github.com/bp0lr/dmut/resolver"
+	//resolver	"github.com/bp0lr/dmut/resolver"
 
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -203,13 +203,13 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 	//}
 
 	//result, err := resolver.LookupIP(domain)
-	result, err := resolver.GetDNSQueryResponse(5, domain, "8.8.8.8")
+	//result, err := resolver.GetDNSQueryResponse(5, domain, "8.8.8.8")
 	
-	if err != nil {
+	//if err != nil {
 		//fmt.Printf("error %v is invalid", domain)
-	}else{
-		fmt.Printf("%v : %v\n", domain, result)
-	}
+	//}else{
+	//	fmt.Printf("%v : %v\n", domain, result)
+	//}
 		
 	//if outputFileArg != "" {
 	//	outputFile.WriteString(u.String() + "\n")
