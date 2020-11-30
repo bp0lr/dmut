@@ -7,25 +7,18 @@ package main
 import (
 	"os"
 	"fmt"
-	//"net"
 	"sync"
-	//"time"
+	"time"
 	"bufio"
+	"io/ioutil"
 	"strings"
-	//"strconv"
+	"strconv"
 	"net/url"
-	//"net/http"
-	//"math/rand"
-	//"crypto/tls"
+	"math/rand"
 	
-	//"encoding/json"
-
-	//resolver	"github.com/bp0lr/dmut/resolver"
-
+	resolver	"github.com/bp0lr/dmut/resolver"
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
-	//			"github.com/peterzen/goresolver"
-
 )
 
 var (
@@ -33,7 +26,10 @@ var (
 	mutationsDic		string
 	urlArg            	string
 	outputFileArg     	string
+	dnsFileArg			string
+	dnsArg				string
 	verboseArg        	bool
+	dnsServers 			[]string
 )
 
 //jobL desc
@@ -42,27 +38,66 @@ type jobL struct {
 	sld  		string
 	trd  		string
 	tasks		[]string
-	//var2		[]string
-	//var3		[]string
 }
 
 func main() {
 
-	flag.IntVarP(&workersArg, "workers", "w", 50, "Workers amount")
+	var alterations []string
+
+	flag.IntVarP(&workersArg, "workers", "w", 25, "Workers amount")
 	flag.StringVarP(&urlArg, "url", "u", "", "The firebase url to test")
 	flag.BoolVarP(&verboseArg, "verbose", "v", false, "Display extra info about what is going on")
 	flag.StringVarP(&mutationsDic, "dic", "d", "", "Dictionary file containing mutation list")
 	flag.StringVarP(&outputFileArg, "output", "o", "", "Output file to save the results to")
+	flag.StringVarP(&dnsFileArg, "dnsFile", "s", "", "Use this dns server list from file")
+	flag.StringVarP(&dnsArg, "dnsServers", "l", "", "Use this dns server list separated by ,")
 	
 	flag.Parse()
 
 	//concurrency
-	workers := 200
-	if workersArg > 0  && workersArg < 400 {
+	workers := 25
+	if workersArg > 0  && workersArg < 100 {
 		workers = workersArg
 	}
 
-	fmt.Printf("workers: %v\n", workers)
+	if(len(dnsFileArg) > 0){
+		if _, err := os.Stat(dnsFileArg); os.IsNotExist(err) {
+			fmt.Printf("Error, %v\n", err)
+			return
+		  }else{
+			content, _ := ioutil.ReadFile(dnsFileArg)
+			dnsServers = strings.Split(string(content), "\n")
+		  }
+	}
+
+	if(len(mutationsDic) == 0){
+		fmt.Printf("Error, you need to set a mutation file using the flag -d\n")
+		return
+	}
+
+	if(len(mutationsDic) > 0){
+		if _, err := os.Stat(mutationsDic); os.IsNotExist(err) {
+			fmt.Printf("Error, %v\n", err)
+			return
+		}else{
+			mutations, _ := ioutil.ReadFile(mutationsDic)
+			alterations = strings.Split(string(mutations), "\n")
+		}
+	}
+
+	if(len(dnsArg) > 0){
+		dnsServers = strings.Split(dnsArg, ",")
+	}
+
+	if(len(dnsServers) > 0 ){
+		if(verboseArg){
+			fmt.Printf("[+] we are using this dns servers: %v\n", dnsServers)
+		}
+	}
+
+	if(verboseArg){
+		fmt.Printf("workers: %v\n", workers)
+	}
 
 	var outputFile *os.File
 	var err0 error
@@ -87,12 +122,9 @@ func main() {
 		jobs = append(jobs, urlArg)
 	}
 
-	alterations := []string{"dev", "q", "staging", "stage"}
-		
 	for _, value := range jobs {
 		processDomain(workers, value, alterations, outputFile)
 	}
-
 }
 
 func processDomain(workers int, domain string, alterations [] string, outputFile *os.File){
@@ -120,6 +152,11 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	//	for example to test some.test.com we are going to generate alt1.some.test.com and some.alt1.test.com
 	///////////////////////////////////////////////////////////////////////////////////////////////			
 	for _, alt := range alterations {
+
+		if(len(alt) < 1){
+			continue
+		}
+
 		strSplit := strings.Split(job.trd, ".")
 
 		for i := 0; i < len(strSplit); i++ {
@@ -133,7 +170,6 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	//	this will add a number to the end of each subdmain part.
 	//	for example to test some.test.com we are going to generate some1.some.test.com, some2.alt1.test.com, etc
 	///////////////////////////////////////////////////////////////////////////////////////////////		
-	/*
 	for index := 0; index < 10; index++ {		
 		strSplit := strings.Split(job.trd, ".")
 
@@ -147,13 +183,17 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
 		}
 	}
-	*/
 	//fmt.Printf("strSplit: %v\n", job.var2)
 	
 	//	this will add (clean and using a -) each alteration to each subdomain part.
 	//	for example to test some.test.com we are going to generate some-alt1.test.com, alt1-some.test.com, etc
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	for _, alt := range alterations {
+		
+		if(len(alt) < 1){
+			continue
+		}
+
 		strSplit := strings.Split(job.trd, ".")
 
 		for i := 0; i < len(strSplit); i++ {			
@@ -173,50 +213,66 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		}
 	}
 	
-	//fmt.Printf("strSplit: %v\n", job.var3)
-
-	fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
+	if(verboseArg){
+		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
+	}
 	
-	//jobs := make(chan string)
+	jobs := make(chan string)
 	var wg sync.WaitGroup
 
-	//for i := 0; i < workers; i++ {
-	//	wg.Add(1)
-	//	go func() {
-			for _, task := range job.tasks {			
+	
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			for task := range jobs {				
 				fullDomain:= task + "." + job.sld + "." + job.tld + "."
-				fmt.Printf("working on %v\n", fullDomain)
 				processDNS(&wg, fullDomain, outputFile)
 			}
-	//		wg.Done()			
-	//	}()
-	//}
-
-	//close(jobs)	
-	//wg.Wait()
+			wg.Done()
+		}()
+	}
+		
+	for _, line := range job.tasks {
+		jobs <- line
+	}
+	
+	close(jobs)	
+	wg.Wait()	
 }
 
 func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 
-	//if verboseArg {
+	if verboseArg {
 		fmt.Printf("[+] Testing: %v\n", domain)
-	//}
+	}
 
-	//result, err := resolver.LookupIP(domain)
-	//result, err := resolver.GetDNSQueryResponse(5, domain, "8.8.8.8")
-	
-	//if err != nil {
-		//fmt.Printf("error %v is invalid", domain)
-	//}else{
-	//	fmt.Printf("%v : %v\n", domain, result)
-	//}
-		
-	//if outputFileArg != "" {
-	//	outputFile.WriteString(u.String() + "\n")
-	//}	
+	qtypes := []string{"A", "CNAME"}
+
+	var dnsServer string
+	if(len(dnsServers) > 0){
+		rand.Seed(time.Now().UnixNano())
+		randomIndex := rand.Intn(len(dnsServers))
+
+		dnsServer = dnsServers[randomIndex] + ":53"
+	}else{
+		dnsServer = "8.8.8.8:53"
+	}
+
+	if(verboseArg){
+		fmt.Printf("[+] Using dns server: %v\n", dnsServer)
+	}
+
+	for _, qtype := range qtypes {
+		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer)
+		if err == nil {
+			if outputFileArg != "" {
+				outputFile.WriteString(domain + "\n")
+			}	
+			fmt.Printf("[VALID] %v : %v\n", domain, result)
+			break
+		}
+	}	
 }
-
-
 
 func insert(a []string, index int, value string) []string {
     if len(a) == index { // nil or empty slice or after last element

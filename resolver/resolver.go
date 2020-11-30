@@ -8,7 +8,7 @@ import (
 )
 
 //GetDNSQueryResponse desc
-func GetDNSQueryResponse(queryType, fqdn, dnsServer string) ([]string, error) {
+func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) ([]string, error) {
 	qt, ok := dns.StringToType[queryType]
 	if !ok {
 		return nil, fmt.Errorf("Query type '%s' is an unknown type", queryType)
