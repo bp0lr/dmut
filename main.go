@@ -316,7 +316,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 			break
 		} else{
 			if(verboseArg){
-				fmt.Printf("err: %v\n", err)
+				//fmt.Printf("err: %v\n", err)
 			}
 		}
 	}	

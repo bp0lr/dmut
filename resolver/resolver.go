@@ -30,6 +30,7 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) ([]str
 	
 	in, _ , err := udp.Exchange(m, dnsServer)
 	if err != nil {
+		fmt.Printf("err: %v\n", err)
 		return nil, err
 	}
 
