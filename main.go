@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"net/url"
 	"math/rand"
-	
+		
 	resolver	"github.com/bp0lr/dmut/resolver"
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -248,6 +248,9 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		}
 	}
 	
+	//we are going to remove duplicated from job.tasks
+	job.tasks = removeDuplicatesSlice(job.tasks)
+	
 	if(verboseArg){
 		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
 	}
@@ -280,7 +283,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 
 func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeout int) {
 
-	trimDomain:= TrimLastPoint(domain, ".")
+	trimDomain:= trimLastPoint(domain, ".")
 
 	if verboseArg {
 		fmt.Printf("[+] Testing: %v\n", domain)
@@ -357,9 +360,27 @@ func downloadResolverList() error{
 	return nil
 }
 
-func TrimLastPoint(s, suffix string) string {
+func trimLastPoint(s, suffix string) string {
     if strings.HasSuffix(s, suffix) {
         s = s[:len(s)-len(suffix)]
     }
     return s
+}
+
+func removeDuplicatesSlice(s []string) []string {
+	m := make(map[string]bool)
+	for _, item := range s {
+			if _, ok := m[item]; ok {
+					//fmt.Printf("Duplicate: %v\n", item)
+			} else {
+					m[item] = true
+			}
+	}
+
+	var result []string
+	for item := range m {
+		result = append(result, item)
+	}
+
+	return result
 }
