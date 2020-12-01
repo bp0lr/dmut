@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"fmt"
+	"net"
 	"sort"
 	"strings"
 
@@ -14,11 +15,19 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) ([]str
 	if !ok {
 		return nil, fmt.Errorf("Query type '%s' is an unknown type", queryType)
 	}
+	
+	c := new(dns.Client)
+	c.Timeout = 5
+	c.Dialer = &net.Dialer{
+		Timeout: 5,
+	}
+
+	//fmt.Printf("timeout: 5\n")
 
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(fqdn), qt)
 
-	in, err := dns.Exchange(m, dnsServer)
+	in, _ , err := c.Exchange(m, dnsServer)
 	if err != nil {
 		return nil, err
 	}
