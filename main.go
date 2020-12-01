@@ -10,15 +10,16 @@ import (
 	"fmt"
 	"sync"
 	"net/http"
-	"time"
 	"bufio"
 	"io/ioutil"
 	"strings"
 	"strconv"
 	"net/url"
-	"math/rand"
 		
+	util		"github.com/bp0lr/dmut/util"
 	resolver	"github.com/bp0lr/dmut/resolver"
+
+
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
 )
@@ -26,6 +27,7 @@ import (
 var (
 	workersArg	      	int
 	dnsTimeOutArg		int
+	dnsRetriesArg		int
 	mutationsDic		string
 	urlArg            	string
 	outputFileArg     	string
@@ -61,9 +63,9 @@ func main() {
 	flag.BoolVar(&ipArg, "show-ip", false, "Display info for valid results")
 	flag.BoolVar(&simulateArg, "simulate", false, "Display info about the job without run it")
 	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
+	flag.IntVar(&dnsRetriesArg, "dns-retries", 3, "Amount of retries for failed dns queries")
 
 	flag.Parse()
-
 
 	if(updateDNSArg){
 		err:=downloadResolverList()
@@ -99,6 +101,26 @@ func main() {
 		  }
 	}
 
+	if(len(dnsArg) > 0){
+		dnsServers = strings.Split(dnsArg, ",")
+	}
+
+	if(len(dnsServers) == 0){
+		dnsServers = []string{
+			"1.1.1.1:53", // Cloudflare
+			"1.0.0.1:53", // Cloudflare
+			"8.8.8.8:53", // Google
+			"8.8.4.4:53", // Google
+			"9.9.9.9:53", // Quad9
+		}	
+	}
+
+	dnsServers = util.ValidateDNSServers(dnsServers)
+
+	if(verboseArg){
+		fmt.Printf("[+] Using dns server: %v\n", dnsServers)
+	}
+
 	if(len(mutationsDic) == 0){
 		fmt.Printf("Error, you need to define a mutation file list using the arg -d\n")
 		return
@@ -112,10 +134,6 @@ func main() {
 			mutations, _ := ioutil.ReadFile(mutationsDic)
 			alterations = strings.Split(string(mutations), "\n")
 		}
-	}
-
-	if(len(dnsArg) > 0){
-		dnsServers = strings.Split(dnsArg, ",")
 	}
 
 	if(len(dnsServers) > 0 ){
@@ -149,7 +167,7 @@ func main() {
 	}
 
 	for _, value := range jobs {
-		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg)
+		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg, dnsRetriesArg)
 	}
 
 	//if we didn't found anything, delete the result file.
@@ -163,7 +181,7 @@ func main() {
 	}	
 }
 
-func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsTimeout int){
+func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsTimeout int, dnsRetries int){
 
 	_, err := url.Parse(domain)
 	if err != nil {
@@ -196,7 +214,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		strSplit := strings.Split(job.trd, ".")
 
 		for i := 0; i <= len(strSplit); i++ {
-			val:=insert(strSplit, i, alt)
+			val:=util.Insert(strSplit, i, alt)
 			job.tasks = append(job.tasks, strings.Join(val, "."))
 		}
 	}
@@ -246,7 +264,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	}
 	
 	//removing duplicated from job.tasks
-	job.tasks = removeDuplicatesSlice(job.tasks)
+	job.tasks = util.RemoveDuplicatesSlice(job.tasks)
 	
 	if(verboseArg){
 		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
@@ -264,7 +282,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		go func() {
 			for task := range jobs {				
 				fullDomain:= task + "." + job.sld + "." + job.tld + "."
-				processDNS(&wg, fullDomain, outputFile, dnsTimeout)
+				processDNS(&wg, fullDomain, outputFile, dnsTimeout, dnsRetries)
 			}
 			wg.Done()
 		}()
@@ -278,61 +296,36 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	wg.Wait()	
 }
 
-func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeout int) {
+func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeout int, dnsRetries int) {
 
-	trimDomain:= trimLastPoint(domain, ".")
+	trimDomain:= util.TrimLastPoint(domain, ".")
 
 	if verboseArg {
 		fmt.Printf("[+] Testing: %v\n", domain)
 	}
 
-	qtypes := []string{"A", "CNAME", "AAAA"}
+	result, err:= resolver.GetDNSQueryResponse(domain, dnsServers, dnsTimeout, dnsRetries)
+	if err == nil && result.Data.StatusCode != "NXDOMAIN" {
+		
+		//fmt.Printf("res: %v\n", result.Data.Raw)
 
-	var dnsServer string
-	if(len(dnsServers) > 0){
-		rand.Seed(time.Now().UnixNano())
-		randomIndex := rand.Intn(len(dnsServers) -1)
-
-		dnsServer = dnsServers[randomIndex] + ":53"
-	}else{
-		dnsServer = "8.8.8.8:53"
-	}
-
-	if(verboseArg){
-		fmt.Printf("[+] Using dns server: %v\n", dnsServer)
-	}
-
-	for _, qtype := range qtypes {
-		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer, dnsTimeout)
-		if err == nil  && len(result) > 0{
-			if outputFileArg != "" {
-				if(ipArg){				
-					outputFile.WriteString(trimDomain + result + "\n")
-				} else {
-					outputFile.WriteString(trimDomain + "\n")
-				}
-			}	
-			if(ipArg){
-				fmt.Printf("[VALID] %v%v\n", trimDomain, result)
-			}else{
-				fmt.Printf("%v\n", trimDomain)
+		if outputFileArg != "" {
+			if(ipArg){	
+				outputFile.WriteString(trimDomain + ":" + util.TrimChars(strings.Join(result.Data.CNAME,",")) + util.TrimChars(strings.Join(result.Data.A,",")) + "\n")
+			} else {
+				outputFile.WriteString(trimDomain + "\n")
 			}
-			break
-		} else{
-			if(verboseArg){
-				//fmt.Printf("err: %v\n", err)
-			}
+		}	
+		if(ipArg){
+			fmt.Printf("%v : [%v]:[%v]\n", trimDomain, util.TrimChars(strings.Join(result.Data.CNAME,",")) , util.TrimChars(strings.Join(result.Data.A,",")))
+		}else{
+			fmt.Printf("%v\n", trimDomain)
 		}
-	}	
-}
-
-func insert(a []string, index int, value string) []string {
-    if len(a) == index { // nil or empty slice or after last element
-        return append(a, value)
-    }
-    a = append(a[:index+1], a[index:]...) // index < len(a)
-    a[index] = value
-    return a
+	} else{
+		if(verboseArg){
+			//fmt.Printf("err: %v\n", err)
+		}
+	}
 }
 
 func downloadResolverList() error{
@@ -355,29 +348,4 @@ func downloadResolverList() error{
 	}
 
 	return nil
-}
-
-func trimLastPoint(s, suffix string) string {
-    if strings.HasSuffix(s, suffix) {
-        s = s[:len(s)-len(suffix)]
-    }
-    return s
-}
-
-func removeDuplicatesSlice(s []string) []string {
-	m := make(map[string]bool)
-	for _, item := range s {
-			if _, ok := m[item]; ok {
-					//fmt.Printf("Duplicate: %v\n", item)
-			} else {
-					m[item] = true
-			}
-	}
-
-	var result []string
-	for item := range m {
-		result = append(result, item)
-	}
-
-	return result
 }
