@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"net"
 	"time"
-	//"sort"
-	//"strings"
-
+	
 	"github.com/miekg/dns"
 )
 
@@ -14,17 +12,15 @@ func exchangeWithRetry(c *dns.Client, m *dns.Msg, server string) (*dns.Msg, erro
 	r, _, err := c.Exchange(m, server)
 	if err != nil {
 		for i := 0; i < 3; i++ {			
-			fmt.Printf("Retry %v: %v\n", i, server)
+			//fmt.Printf("Retry %v: %v\n", i, server)
 			r, _, err = c.Exchange(m, server)
 			if err == nil {
 				return r, err				
 			}
-		}
-		
+		}		
 	}
 	return r, err
 }
-
 
 //GetDNSQueryResponse desc
 func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string, dnsTimeout int) (string, error) {
@@ -41,28 +37,26 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string, dnsTim
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(fqdn), qt)
 	
-	//in, _ , err := c.Exchange(m, dnsServer)
 	in, err := exchangeWithRetry(c, m, dnsServer)
 	if err != nil {
-		fmt.Printf("err0: %v\n", err)
+		//fmt.Printf("err: %v\n", err)
 		return "", err
 	}
 
 	switch dns.RcodeToString[in.Rcode] {
-	// TODO: Catch more error codes (https://github.com/miekg/dns/blob/master/msg.go#L127)
 	case "NXDOMAIN":
 		return "", fmt.Errorf("%v was not found. (NXDOMAIN)", fqdn)
 	case "NOERROR":
 		break
 	default: 
-		fmt.Printf("[%v] %v\n", fqdn, dns.RcodeToString[in.Rcode])	
+		//fmt.Printf("[%v] %v\n", fqdn, dns.RcodeToString[in.Rcode])	
 		break
 	}
 
 	//confirm CNAME
 	for _, record := range in.Answer {
 		if _, ok := record.(*dns.CNAME); ok {
-			fmt.Printf("CNAME found: %v\n", string(record.(*dns.CNAME).Target))
+			//fmt.Printf("CNAME found: %v\n", string(record.(*dns.CNAME).Target))
 			return string(record.(*dns.CNAME).Target), nil
 		}
 	}
@@ -70,7 +64,7 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string, dnsTim
 	//confirm A
 	for _, record := range in.Answer {
 		if _, ok := record.(*dns.A); ok {		
-			fmt.Printf("A found: %v\n", record.(*dns.A).A.String())
+			//fmt.Printf("A found: %v\n", record.(*dns.A).A.String())
 			return record.(*dns.A).A.String(), nil
 		}
 	}
@@ -78,7 +72,7 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string, dnsTim
 	//confirm AAAA
 	for _, record := range in.Answer {
 		if _, ok := record.(*dns.AAAA); ok {
-			fmt.Printf("AAAA found: %v\n", record.(*dns.AAAA).AAAA.String())
+			//fmt.Printf("AAAA found: %v\n", record.(*dns.AAAA).AAAA.String())
 			return record.(*dns.AAAA).AAAA.String(), nil
 		}
 	}

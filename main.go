@@ -100,7 +100,7 @@ func main() {
 	}
 
 	if(len(mutationsDic) == 0){
-		fmt.Printf("Error, you need to set a mutation file using the flag -d\n")
+		fmt.Printf("Error, you need to define a mutation file list using the arg -d\n")
 		return
 	}
 
@@ -280,11 +280,13 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 
 func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeout int) {
 
+	trimDomain:= TrimLastPoint(domain, ".")
+
 	if verboseArg {
 		fmt.Printf("[+] Testing: %v\n", domain)
 	}
 
-	qtypes := []string{"A", "CNAME"}
+	qtypes := []string{"A", "CNAME", "AAAA"}
 
 	var dnsServer string
 	if(len(dnsServers) > 0){
@@ -303,22 +305,17 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeo
 	for _, qtype := range qtypes {
 		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer, dnsTimeout)
 		if err == nil  && len(result) > 0{
-			//for i := range result {
-			//	result[i] = strings.TrimSpace(result[i])
-			//}
-			//justString := strings.Join(result,"")
-			
 			if outputFileArg != "" {
 				if(ipArg){				
-					outputFile.WriteString(domain + result + "\n")
+					outputFile.WriteString(trimDomain + result + "\n")
 				} else {
-					outputFile.WriteString(domain + "\n")
+					outputFile.WriteString(trimDomain + "\n")
 				}
 			}	
 			if(ipArg){
-				fmt.Printf("[VALID] %v%v\n", domain, result)
+				fmt.Printf("[VALID] %v%v\n", trimDomain, result)
 			}else{
-				fmt.Printf("%v\n", domain)
+				fmt.Printf("%v\n", trimDomain)
 			}
 			break
 		} else{
@@ -358,4 +355,11 @@ func downloadResolverList() error{
 	}
 
 	return nil
+}
+
+func TrimLastPoint(s, suffix string) string {
+    if strings.HasSuffix(s, suffix) {
+        s = s[:len(s)-len(suffix)]
+    }
+    return s
 }
