@@ -17,8 +17,14 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) ([]str
 		return nil, fmt.Errorf("Query type '%s' is an unknown type", queryType)
 	}
 	
-	udp := &dns.Client{Net: "udp", Timeout: time.Millisecond * time.Duration(2500)}
-
+	udp := &dns.Client{
+			Net: "udp", 
+			Timeout: time.Millisecond * time.Duration(2500),
+			DialTimeout:  5 * time.Second,
+			ReadTimeout:  20 * time.Second,
+			WriteTimeout: 20 * time.Second,
+	}
+	
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(fqdn), qt)
 	
