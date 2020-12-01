@@ -17,18 +17,17 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) ([]str
 	}
 	
 	c := new(dns.Client)
-	c.Timeout = 5
+	c.Timeout = 60
 	c.Dialer = &net.Dialer{
-		Timeout: 5,
+		Timeout: 60,
 	}
-
-	//fmt.Printf("timeout: 5\n")
 
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(fqdn), qt)
 
 	in, _ , err := c.Exchange(m, dnsServer)
 	if err != nil {
+		fmt.Printf("err: %v\n", err)
 		return nil, err
 	}
 
