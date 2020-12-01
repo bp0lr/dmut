@@ -217,8 +217,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	//	this will add (clean and using a -) each alteration to each subdomain part.
 	//	for example to test some.test.com we are going to generate some-alt1.test.com, alt1-some.test.com, etc
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	for _, alt := range alterations {
-		
+	for _, alt := range alterations {	
 		if(len(alt) < 1){
 			continue
 		}
@@ -252,7 +251,6 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	
 	jobs := make(chan string)
 	var wg sync.WaitGroup
-
 	
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
