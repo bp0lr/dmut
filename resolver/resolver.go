@@ -10,8 +10,24 @@ import (
 	"github.com/miekg/dns"
 )
 
+func exchangeWithRetry(c *dns.Client, m *dns.Msg, server string) (*dns.Msg, error) {
+	r, _, err := c.Exchange(m, server)
+	if err != nil {
+		for i := 0; i < 3; i++ {			
+			fmt.Printf("Retry %v: %v\n", i, server)
+			r, _, err = c.Exchange(m, server)
+			if err == nil {
+				return r, err				
+			}
+		}
+		
+	}
+	return r, err
+}
+
+
 //GetDNSQueryResponse desc
-func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) (string, error) {
+func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string, dnsTimeout int) (string, error) {
 	qt, ok := dns.StringToType[queryType]
 	if !ok {
 		return "", fmt.Errorf("Query type '%s' is an unknown type", queryType)
@@ -19,15 +35,16 @@ func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) (strin
 	
 	c := new(dns.Client)	
 	c.Dialer = &net.Dialer{
-		Timeout: 500 * time.Millisecond,
+		Timeout: time.Duration(dnsTimeout) * time.Millisecond,
 	}
 
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(fqdn), qt)
 	
-	in, _ , err := c.Exchange(m, dnsServer)
+	//in, _ , err := c.Exchange(m, dnsServer)
+	in, err := exchangeWithRetry(c, m, dnsServer)
 	if err != nil {
-		fmt.Printf("err: %v\n", err)
+		fmt.Printf("err0: %v\n", err)
 		return "", err
 	}
 

@@ -14,7 +14,7 @@ import (
 	"bufio"
 	"io/ioutil"
 	"strings"
-	//"strconv"
+	"strconv"
 	"net/url"
 	"math/rand"
 	
@@ -25,6 +25,7 @@ import (
 
 var (
 	workersArg	      	int
+	dnsTimeOutArg		int
 	mutationsDic		string
 	urlArg            	string
 	outputFileArg     	string
@@ -32,9 +33,9 @@ var (
 	dnsArg				string
 	verboseArg        	bool
 	updateDNSArg		bool
-	dnsServers 			[]string
 	ipArg				bool
 	simulateArg			bool
+	dnsServers 			[]string	
 )
 
 //jobL desc
@@ -59,7 +60,8 @@ func main() {
 	flag.BoolVar(&updateDNSArg, "update-dnslist", false, "Use this dns server list separated by ,")
 	flag.BoolVar(&ipArg, "show-ip", false, "Display info for valid results")
 	flag.BoolVar(&simulateArg, "simulate", false, "Display info about the job without run it")
-	
+	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
+
 	flag.Parse()
 
 
@@ -77,6 +79,10 @@ func main() {
 	workers := 25
 	if workersArg > 0  && workersArg < 100 {
 		workers = workersArg
+	}
+	
+	if(dnsTimeOutArg == 0 || dnsTimeOutArg > 10000) {
+		dnsTimeOutArg = 500
 	}
 
 	if(verboseArg){
@@ -115,6 +121,7 @@ func main() {
 	if(len(dnsServers) > 0 ){
 		if(verboseArg){
 			fmt.Printf("[+] we are using this dns servers: %v\n", dnsServers)
+			fmt.Printf("[+] Current dns timeout is: %v\n", dnsTimeOutArg)
 		}
 	}
 
@@ -142,7 +149,7 @@ func main() {
 	}
 
 	for _, value := range jobs {
-		processDomain(workers, value, alterations, outputFile)
+		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg)
 	}
 
 	//if we didn't found anything, delete the result file.
@@ -156,7 +163,7 @@ func main() {
 	}	
 }
 
-func processDomain(workers int, domain string, alterations [] string, outputFile *os.File){
+func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsTimeout int){
 
 	_, err := url.Parse(domain)
 	if err != nil {
@@ -199,7 +206,6 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	//	this will add a number to the end of each subdmain part.
 	//	for example to test some.test.com we are going to generate some1.some.test.com, some2.alt1.test.com, etc
 	///////////////////////////////////////////////////////////////////////////////////////////////		
-	/*
 	for index := 0; index < 10; index++ {		
 		strSplit := strings.Split(job.trd, ".")
 
@@ -213,7 +219,6 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
 		}
 	}
-	*/
 	//fmt.Printf("strSplit: %v\n", job.var2)
 	
 	//	this will add (clean and using a -) each alteration to each subdomain part.
@@ -259,7 +264,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		go func() {
 			for task := range jobs {				
 				fullDomain:= task + "." + job.sld + "." + job.tld + "."
-				processDNS(&wg, fullDomain, outputFile)
+				processDNS(&wg, fullDomain, outputFile, dnsTimeout)
 			}
 			wg.Done()
 		}()
@@ -273,7 +278,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	wg.Wait()	
 }
 
-func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
+func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeout int) {
 
 	if verboseArg {
 		fmt.Printf("[+] Testing: %v\n", domain)
@@ -296,7 +301,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 	}
 
 	for _, qtype := range qtypes {
-		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer)
+		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer, dnsTimeout)
 		if err == nil  && len(result) > 0{
 			//for i := range result {
 			//	result[i] = strings.TrimSpace(result[i])
