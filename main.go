@@ -296,7 +296,6 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 	for _, qtype := range qtypes {
 		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer)
 		if err == nil  && len(result) > 0{
-
 			for i := range result {
 				result[i] = strings.TrimSpace(result[i])
 			}
@@ -315,6 +314,10 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 				fmt.Printf("%v\n", domain)
 			}
 			break
+		} else{
+			if(verboseArg){
+				fmt.Printf("err: %v\n", err)
+			}
 		}
 	}	
 }
