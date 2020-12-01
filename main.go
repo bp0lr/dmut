@@ -195,14 +195,12 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 
 		strSplit := strings.Split(job.trd, ".")
 
-		for i := 0; i < len(strSplit); i++ {
+		for i := 0; i <= len(strSplit); i++ {
 			val:=insert(strSplit, i, alt)
 			job.tasks = append(job.tasks, strings.Join(val, "."))
 		}
 	}
 	
-	//fmt.Printf("%v\n", job.var1)
-
 	//	this will add a number to the end of each subdmain part.
 	//	for example to test some.test.com we are going to generate some1.some.test.com, some2.alt1.test.com, etc
 	///////////////////////////////////////////////////////////////////////////////////////////////		
@@ -219,7 +217,6 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
 		}
 	}
-	//fmt.Printf("strSplit: %v\n", job.var2)
 	
 	//	this will add (clean and using a -) each alteration to each subdomain part.
 	//	for example to test some.test.com we are going to generate some-alt1.test.com, alt1-some.test.com, etc
@@ -248,7 +245,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		}
 	}
 	
-	//we are going to remove duplicated from job.tasks
+	//removing duplicated from job.tasks
 	job.tasks = removeDuplicatesSlice(job.tasks)
 	
 	if(verboseArg){
