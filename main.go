@@ -14,7 +14,7 @@ import (
 	"bufio"
 	"io/ioutil"
 	"strings"
-	"strconv"
+	//"strconv"
 	"net/url"
 	"math/rand"
 	
@@ -199,6 +199,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	//	this will add a number to the end of each subdmain part.
 	//	for example to test some.test.com we are going to generate some1.some.test.com, some2.alt1.test.com, etc
 	///////////////////////////////////////////////////////////////////////////////////////////////		
+	/*
 	for index := 0; index < 10; index++ {		
 		strSplit := strings.Split(job.trd, ".")
 
@@ -212,6 +213,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
 		}
 	}
+	*/
 	//fmt.Printf("strSplit: %v\n", job.var2)
 	
 	//	this will add (clean and using a -) each alteration to each subdomain part.
@@ -282,7 +284,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 	var dnsServer string
 	if(len(dnsServers) > 0){
 		rand.Seed(time.Now().UnixNano())
-		randomIndex := rand.Intn(len(dnsServers))
+		randomIndex := rand.Intn(len(dnsServers) -1)
 
 		dnsServer = dnsServers[randomIndex] + ":53"
 	}else{
@@ -296,20 +298,20 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File) {
 	for _, qtype := range qtypes {
 		result, err:= resolver.GetDNSQueryResponse(qtype, domain, dnsServer)
 		if err == nil  && len(result) > 0{
-			for i := range result {
-				result[i] = strings.TrimSpace(result[i])
-			}
-			justString := strings.Join(result,"")
+			//for i := range result {
+			//	result[i] = strings.TrimSpace(result[i])
+			//}
+			//justString := strings.Join(result,"")
 			
 			if outputFileArg != "" {
 				if(ipArg){				
-					outputFile.WriteString(domain + justString + "\n")
+					outputFile.WriteString(domain + result + "\n")
 				} else {
 					outputFile.WriteString(domain + "\n")
 				}
 			}	
 			if(ipArg){
-				fmt.Printf("[VALID] %v%v\n", domain, justString)
+				fmt.Printf("[VALID] %v%v\n", domain, result)
 			}else{
 				fmt.Printf("%v\n", domain)
 			}

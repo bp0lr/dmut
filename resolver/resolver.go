@@ -2,63 +2,77 @@ package resolver
 
 import (
 	"fmt"
-	//"net"
+	"net"
 	"time"
-	"sort"
-	"strings"
+	//"sort"
+	//"strings"
 
 	"github.com/miekg/dns"
 )
 
 //GetDNSQueryResponse desc
-func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) ([]string, error) {
+func GetDNSQueryResponse(queryType string, fqdn string, dnsServer string) (string, error) {
 	qt, ok := dns.StringToType[queryType]
 	if !ok {
-		return nil, fmt.Errorf("Query type '%s' is an unknown type", queryType)
+		return "", fmt.Errorf("Query type '%s' is an unknown type", queryType)
 	}
 	
-	udp := &dns.Client{
-			Net: "udp", 
-			Timeout: time.Millisecond * time.Duration(2500),
-			DialTimeout:  5 * time.Second,
-			ReadTimeout:  20 * time.Second,
-			WriteTimeout: 20 * time.Second,
+	c := new(dns.Client)	
+	c.Dialer = &net.Dialer{
+		Timeout: 500 * time.Millisecond,
 	}
-	
+
 	m := new(dns.Msg)
 	m.SetQuestion(dns.Fqdn(fqdn), qt)
 	
-	in, _ , err := udp.Exchange(m, dnsServer)
+	in, _ , err := c.Exchange(m, dnsServer)
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
-		return nil, err
+		return "", err
 	}
-
-	responses := []string{}
 
 	switch dns.RcodeToString[in.Rcode] {
 	// TODO: Catch more error codes (https://github.com/miekg/dns/blob/master/msg.go#L127)
 	case "NXDOMAIN":
-		return nil, fmt.Errorf("Domain was not found. (NXDOMAIN)")
+		return "", fmt.Errorf("%v was not found. (NXDOMAIN)", fqdn)
+	case "NOERROR":
+		break
+	default: 
+		fmt.Printf("[%v] %v\n", fqdn, dns.RcodeToString[in.Rcode])	
+		break
 	}
 
-	for _, a := range in.Answer {
-		r, err := FormatDNSAnswer(a)
-		if err != nil {
-			return nil, err
-		}
-		for _, rp := range r {
-			responses = append(responses, ":"+strings.TrimSpace(rp))
+	//confirm CNAME
+	for _, record := range in.Answer {
+		if _, ok := record.(*dns.CNAME); ok {
+			fmt.Printf("CNAME found: %v\n", string(record.(*dns.CNAME).Target))
+			return string(record.(*dns.CNAME).Target), nil
 		}
 	}
 
-	sort.Strings(responses)
+	//confirm A
+	for _, record := range in.Answer {
+		if _, ok := record.(*dns.A); ok {		
+			fmt.Printf("A found: %v\n", record.(*dns.A).A.String())
+			return record.(*dns.A).A.String(), nil
+		}
+	}
 
-	return responses, nil
+	//confirm AAAA
+	for _, record := range in.Answer {
+		if _, ok := record.(*dns.AAAA); ok {
+			fmt.Printf("AAAA found: %v\n", record.(*dns.AAAA).AAAA.String())
+			return record.(*dns.AAAA).AAAA.String(), nil
+		}
+	}
+
+	return "", nil
 }
 
+/*
 //FormatDNSAnswer desc
 func FormatDNSAnswer(a interface{}) (r []string, err error) {
+	fmt.Printf("res: %v\n", r)
 	switch a.(type) {
 	case *dns.A:
 		r = []string{a.(*dns.A).A.String()}
@@ -66,24 +80,25 @@ func FormatDNSAnswer(a interface{}) (r []string, err error) {
 		r = []string{a.(*dns.AAAA).AAAA.String()}
 	case *dns.CNAME:
 		r = []string{a.(*dns.CNAME).Target}
-	case *dns.MX:
-		r = []string{fmt.Sprintf("%d %s", a.(*dns.MX).Preference, a.(*dns.MX).Mx)}
+	//case *dns.MX:
+	//	r = []string{fmt.Sprintf("%d %s", a.(*dns.MX).Preference, a.(*dns.MX).Mx)}
 	case *dns.NS:
 		r = []string{a.(*dns.NS).Ns}
-	case *dns.PTR:
-		r = []string{a.(*dns.PTR).Ptr}
-	case *dns.TXT:
-		r = a.(*dns.TXT).Txt
-	case *dns.SRV:
-		r = []string{fmt.Sprintf("%d %d %d %s",
-			a.(*dns.SRV).Priority,
-			a.(*dns.SRV).Weight,
-			a.(*dns.SRV).Port,
-			a.(*dns.SRV).Target,
-		)}
+	//case *dns.PTR:
+	//	r = []string{a.(*dns.PTR).Ptr}
+	//case *dns.TXT:
+	//	r = a.(*dns.TXT).Txt
+	//case *dns.SRV:
+	//	r = []string{fmt.Sprintf("%d %d %d %s",
+	//		a.(*dns.SRV).Priority,
+	//		a.(*dns.SRV).Weight,
+	//		a.(*dns.SRV).Port,
+	//		a.(*dns.SRV).Target,
+	//	)}
 	default:
 		err = fmt.Errorf("Got an unexpected answer type: %s", a.(dns.RR).String())
 	}
 
 	return
 }
+*/
