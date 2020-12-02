@@ -5,6 +5,7 @@
 package main
 
 import (
+	"path"
 	"os"
 	"fmt"
 	"sync"
@@ -16,7 +17,6 @@ import (
 	util		"github.com/bp0lr/dmut/util"
 	tables		"github.com/bp0lr/dmut/tables"
 	resolver	"github.com/bp0lr/dmut/resolver"
-
 
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -34,7 +34,6 @@ var (
 	verboseArg        	bool
 	updateDNSArg		bool
 	ipArg				bool
-	simulateArg			bool
 	dnsServers 			[]string	
 )
 
@@ -51,26 +50,26 @@ func main() {
 	var alterations []string
 
 	flag.IntVarP(&workersArg, "workers", "w", 25, "Workers amount")
-	flag.StringVarP(&urlArg, "url", "u", "", "Single url to test")
+	flag.StringVarP(&urlArg, "url", "u", "", "Target URL")
 	flag.BoolVarP(&verboseArg, "verbose", "v", false, "Display extra info about what is going on")
-	flag.StringVarP(&mutationsDic, "dic", "d", "", "Dictionary file containing mutation list")
+	flag.StringVarP(&mutationsDic, "dictionary", "d", "", "Dictionary file containing mutation list")
 	flag.StringVarP(&outputFileArg, "output", "o", "", "Output file to save the results to")
-	flag.StringVarP(&dnsFileArg, "dnsFile", "s", "", "Use this dns server list from file")
-	flag.StringVarP(&dnsArg, "dnsServers", "l", "", "Use this dns server list separated by ,")
-	flag.BoolVar(&updateDNSArg, "update-dnslist", false, "Use this dns server list separated by ,")
+	flag.StringVarP(&dnsFileArg, "dnsFile", "s", "", "Use DNS servers from this file")
+	flag.StringVarP(&dnsArg, "dnsServers", "l", "", "Use DNS servers from a list separated by ,")
+	flag.BoolVar(&updateDNSArg, "update-dnslist", false, "Download a list of periodically validated public DNS resolvers")
 	flag.BoolVar(&ipArg, "show-ip", false, "Display info for valid results")
-	flag.BoolVar(&simulateArg, "simulate", false, "Display info about the job without run it")
 	flag.IntVar(&dnsRetriesArg, "dns-retries", 3, "Amount of retries for failed dns queries")
 	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
 
 	flag.Parse()
 
 	if(updateDNSArg){
-		err:=util.DownloadResolverList()
+		file, err:=util.DownloadResolverList()
 		if(err != nil){
 			fmt.Printf("[-] Error: %v\n", err)
 		}else{
-			fmt.Printf("[+] File downloaded successfully\n")
+			fmt.Printf("[+] File downloaded successfully!\n")
+			fmt.Printf("[+] Location: %v\n", file)
 		}
 		return
 	}
@@ -104,13 +103,24 @@ func main() {
 	}
 
 	if(len(dnsServers) == 0){
-		dnsServers = []string{
-			"1.1.1.1:53", // Cloudflare
-			"1.0.0.1:53", // Cloudflare
-			"8.8.8.8:53", // Google
-			"8.8.4.4:53", // Google
-			"9.9.9.9:53", // Quad9
-		}	
+		userDir, err:=util.GetDir()
+		if err != nil{
+			userDir=""
+		}
+
+		fullPath:= path.Join(userDir, "resolvers.txt")
+		if _, err := os.Stat(fullPath); !os.IsNotExist(err) {
+			content, _ := ioutil.ReadFile(fullPath)
+			dnsServers = strings.Split(string(content), "\n")
+		}else{
+			dnsServers = []string{
+				"1.1.1.1:53", // Cloudflare
+				"1.0.0.1:53", // Cloudflare
+				"8.8.8.8:53", // Google
+				"8.8.4.4:53", // Google
+				"9.9.9.9:53", // Quad9
+			}
+		}
 	}
 
 	dnsServers = util.ValidateDNSServers(dnsServers)
@@ -119,7 +129,7 @@ func main() {
 		fmt.Printf("[+] Using dns server: %v\n", dnsServers)
 		fmt.Printf("[+] Current dns timeout is: %v\n", dnsTimeOutArg)
 	}
-
+	
 	if(len(mutationsDic) == 0){
 		fmt.Printf("Error, you need to define a mutation file list using the arg -d\n")
 		return
@@ -200,10 +210,6 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	
 	if(verboseArg){
 		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
-	}
-
-	if(simulateArg){
-		return
 	}
 	
 	jobs := make(chan string)

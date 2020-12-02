@@ -3,6 +3,8 @@ package util
 import (
 	"io"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 	"net/http"	
 )
@@ -30,9 +32,9 @@ func RemoveDuplicatesSlice(s []string) []string {
 	m := make(map[string]bool)
 	for _, item := range s {
 			if _, ok := m[item]; ok {
-					//fmt.Printf("Duplicate: %v\n", item)
+				//fmt.Printf("Duplicate: %v\n", item)
 			} else {
-					m[item] = true
+				m[item] = true
 			}
 	}
 
@@ -71,24 +73,43 @@ func ValidateDNSServers(servers []string) []string{
 }
 
 //DownloadResolverList func
-func DownloadResolverList() error{
-		
-	out, err := os.Create("resolvers.txt")
+func DownloadResolverList() (string, error){
+	
+	dir,err := GetDir()
+	if(err != nil){
+		return "", err
+	}
+	os.MkdirAll(dir, 0644)
+
+	fullPath := filepath.Join(dir, "resolvers.txt")
+
+	os.Remove(fullPath)
+	out, err := os.Create(fullPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer out.Close()
 
 	resp, err := http.Get("https://raw.githubusercontent.com/janmasarik/resolvers/master/resolvers.txt")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return fullPath, nil
+}
+
+//GetDir desc
+func GetDir() (string, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	
+	return filepath.Join(usr.HomeDir, ".dmut"), nil
 }

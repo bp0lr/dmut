@@ -1,12 +1,7 @@
 package resolver
 
-import (
-	//"fmt"
-	//"net"
-	//"time"
-	
+import (	
 	miekg "github.com/miekg/dns"
-	//dns "github.com/projectdiscovery/retryabledns"	
 	dns "github.com/bp0lr/dmut/dns"
 )
 
@@ -24,7 +19,7 @@ func GetDNSQueryResponse(fqdn string, dnsServers []string, dnsTimeOut int, retri
 
 	qtype:= []uint16 {miekg.TypeCNAME, miekg.TypeA}
 
-	// I prefer to make a single query for each type and stop if a have found something to win some milliseconds.
+	// I prefer to make a single query for each type, stop it if a have found something to win some milliseconds.
 	for _, value := range qtype{		
 		dnsClient := dns.New(dnsServers, dnsTimeOut, retries)
 		ips, err := dnsClient.Query(fqdn, value)

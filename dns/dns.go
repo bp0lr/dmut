@@ -16,8 +16,6 @@ import (
 	"github.com/miekg/dns"
 )
 
-const defaultPort = "53"
-
 // Client is a DNS resolver client to resolve hostnames.
 type Client struct {
 	resolvers  	[]string
@@ -54,7 +52,7 @@ func (c *Client) Do(msg *dns.Msg) (resp *dns.Msg, err error) {
 		resolver := c.resolvers[rand.Intn(len(c.resolvers))]
 		resp, _ , err = cli.Exchange(msg, resolver)
 		if err != nil {
-			fmt.Printf("err: %v\n", err)
+			//fmt.Printf("err: %v\n", err)
 			continue
 		}
 
