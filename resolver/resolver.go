@@ -6,7 +6,8 @@ import (
 	//"time"
 	
 	//"github.com/miekg/dns"
-	dns "github.com/projectdiscovery/retryabledns"	
+	//dns "github.com/projectdiscovery/retryabledns"	
+	dns "github.com/bp0lr/dmut/dns"
 )
 
 //JobResponse desc
