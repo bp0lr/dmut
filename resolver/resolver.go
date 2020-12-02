@@ -18,11 +18,11 @@ type JobResponse struct {
 }
 
 //GetDNSQueryResponse desc
-func GetDNSQueryResponse(fqdn string, dnsServers []string, retries int) (JobResponse, error) {
+func GetDNSQueryResponse(fqdn string, dnsServers []string, dnsTimeOut int, retries int) (JobResponse, error) {
 	var res JobResponse
 	res.Domain = fqdn
 
-	dnsClient := dns.New(dnsServers, retries)
+	dnsClient := dns.New(dnsServers, dnsTimeOut, retries)
 	ips, err := dnsClient.Resolve(fqdn)
 	if err != nil {
 		fmt.Printf("err: %v\n", err)

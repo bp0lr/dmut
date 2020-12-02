@@ -20,17 +20,19 @@ const defaultPort = "53"
 
 // Client is a DNS resolver client to resolve hostnames.
 type Client struct {
-	resolvers  []string
-	maxRetries int
-	rand       *rand.Rand
-	mutex      *sync.Mutex
+	resolvers  	[]string
+	maxRetries 	int
+	dnsTimeOut	int
+	rand       	*rand.Rand
+	mutex      	*sync.Mutex
 }
 
 // New creates a new dns client
-func New(baseResolvers []string, maxRetries int) *Client {
+func New(baseResolvers []string, dnsTimeOut int, maxRetries int) *Client {
 	client := Client{
 		rand:       rand.New(rand.NewSource(time.Now().UnixNano())),
 		mutex:      &sync.Mutex{},
+		dnsTimeOut: dnsTimeOut,
 		maxRetries: maxRetries,
 		resolvers:  baseResolvers,
 	}
@@ -46,16 +48,12 @@ func (c *Client) Resolve(host string) (*DNSData, error) {
 // Do sends a provided dns request and return the raw native response
 func (c *Client) Do(msg *dns.Msg) (resp *dns.Msg, err error) {
 
-	/*
-	cli := &net.Dialer{
-		Timeout: time.Duration(500) * time.Millisecond,
-	}
-	*/
-
-	cli := dns.Client{Net: "udp", Timeout: 500}
+	cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
 
 	for i := 0; i < c.maxRetries; i++ {
 		resolver := c.resolvers[rand.Intn(len(c.resolvers))]
+		fmt.Printf("domain: %v | dns: %v | timeout: %v\n", msg.String(), resolver, c.dnsTimeOut)
+
 		resp, _ , err = cli.Exchange(msg, resolver)
 		if err != nil {
 			fmt.Printf("err: %v\n", err)
@@ -110,11 +108,13 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 		}
 		msg.Question[0] = question
 
+		cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
 		for i := 0; i < c.maxRetries; i++ {
 			resolver := c.resolvers[rand.Intn(len(c.resolvers))]
 			var resp *dns.Msg
-			resp, err = dns.Exchange(&msg, resolver)
+			resp, _, err = cli.Exchange(&msg, resolver)
 			if err != nil {
+				fmt.Printf("err: %v\n", err)
 				continue
 			}
 
