@@ -52,8 +52,6 @@ func (c *Client) Do(msg *dns.Msg) (resp *dns.Msg, err error) {
 
 	for i := 0; i < c.maxRetries; i++ {
 		resolver := c.resolvers[rand.Intn(len(c.resolvers))]
-		fmt.Printf("domain: %v | dns: %v | timeout: %v\n", msg.String(), resolver, c.dnsTimeOut)
-
 		resp, _ , err = cli.Exchange(msg, resolver)
 		if err != nil {
 			fmt.Printf("err: %v\n", err)

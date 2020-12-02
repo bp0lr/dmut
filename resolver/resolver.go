@@ -5,7 +5,7 @@ import (
 	//"net"
 	//"time"
 	
-	//"github.com/miekg/dns"
+	miekg "github.com/miekg/dns"
 	//dns "github.com/projectdiscovery/retryabledns"	
 	dns "github.com/bp0lr/dmut/dns"
 )
@@ -22,8 +22,10 @@ func GetDNSQueryResponse(fqdn string, dnsServers []string, dnsTimeOut int, retri
 	var res JobResponse
 	res.Domain = fqdn
 
+	qtype:= []uint16 {miekg.TypeA, miekg.TypeAAAA, miekg.TypeCNAME}
+
 	dnsClient := dns.New(dnsServers, dnsTimeOut, retries)
-	ips, err := dnsClient.Resolve(fqdn)
+	ips, err := dnsClient.QueryMultiple(fqdn, qtype)
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 		res.Status = false

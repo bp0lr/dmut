@@ -5,18 +5,16 @@
 package main
 
 import (
-	"io"
 	"os"
 	"fmt"
 	"sync"
-	"net/http"
 	"bufio"
 	"io/ioutil"
 	"strings"
-	"strconv"
 	"net/url"
 		
 	util		"github.com/bp0lr/dmut/util"
+	tables		"github.com/bp0lr/dmut/tables"
 	resolver	"github.com/bp0lr/dmut/resolver"
 
 
@@ -68,7 +66,7 @@ func main() {
 	flag.Parse()
 
 	if(updateDNSArg){
-		err:=downloadResolverList()
+		err:=util.DownloadResolverList()
 		if(err != nil){
 			fmt.Printf("[-] Error: %v\n", err)
 		}else{
@@ -193,82 +191,16 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	
 	domParse, _:=tld.Parse(domain)
 	
-	//tld: com
-	//sld: redbull
-	//trd: lala.test.val
-
 	var job jobL	
-	job.sld = domParse.SLD
-	job.tld = domParse.TLD
-	job.trd = domParse.TRD
+	job.sld = domParse.SLD				//sld: redbull 
+	job.tld = domParse.TLD 				//tld: com
+	job.trd = domParse.TRD				//trd: lala.test.val
 	
-	//	this will add each alteration to the existing domain.
-	//	for example to test some.test.com we are going to generate alt1.some.test.com and some.alt1.test.com
-	///////////////////////////////////////////////////////////////////////////////////////////////			
-	for _, alt := range alterations {
-
-		if(len(alt) < 1){
-			continue
-		}
-
-		strSplit := strings.Split(job.trd, ".")
-
-		for i := 0; i <= len(strSplit); i++ {
-			val:=util.Insert(strSplit, i, alt)
-			job.tasks = append(job.tasks, strings.Join(val, "."))
-		}
-	}
+	job.tasks = tables.GenerateTables(job.trd, alterations)
 	
-	//	this will add a number to the end of each subdmain part.
-	//	for example to test some.test.com we are going to generate some1.some.test.com, some2.alt1.test.com, etc
-	///////////////////////////////////////////////////////////////////////////////////////////////		
-	for index := 0; index < 10; index++ {		
-		strSplit := strings.Split(job.trd, ".")
-
-		for i := 0; i < len(strSplit); i++ {
-			
-			strclean:=strSplit[i]
-			strSplit[i] = strclean+"-"+strconv.Itoa(index)
-			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
-			
-			strSplit[i] = strclean+strconv.Itoa(index)
-			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
-		}
-	}
-	
-	//	this will add (clean and using a -) each alteration to each subdomain part.
-	//	for example to test some.test.com we are going to generate some-alt1.test.com, alt1-some.test.com, etc
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	for _, alt := range alterations {	
-		if(len(alt) < 1){
-			continue
-		}
-
-		strSplit := strings.Split(job.trd, ".")
-
-		for i := 0; i < len(strSplit); i++ {			
-			strclean:=strSplit[i]
-
-			strSplit[i] = strclean+"-"+alt
-			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
-
-			strSplit[i] = alt+"-"+strclean
-			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
-
-			strSplit[i] = strclean+alt
-			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
-
-			strSplit[i] = alt+strclean
-			job.tasks = append(job.tasks, strings.Join(strSplit, "."))
-		}
-	}
-	
-	//removing duplicated from job.tasks
-	job.tasks = util.RemoveDuplicatesSlice(job.tasks)
-	
-	//if(verboseArg){
+	if(verboseArg){
 		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
-	//}
+	}
 
 	if(simulateArg){
 		return
@@ -305,10 +237,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 	}
 
 	result, err:= resolver.GetDNSQueryResponse(domain, dnsServers, dnsTimeOut, dnsRetries)
-	if err == nil && result.Data.StatusCode != "NXDOMAIN" {
-		
-		//fmt.Printf("res: %v\n", result.Data.Raw)
-
+	if (err == nil && result.Data.StatusCode != "NXDOMAIN") {
 		if outputFileArg != "" {
 			if(ipArg){	
 				outputFile.WriteString(trimDomain + ":" + util.TrimChars(strings.Join(result.Data.CNAME,",")) + util.TrimChars(strings.Join(result.Data.A,",")) + "\n")
@@ -326,26 +255,4 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 			//fmt.Printf("err: %v\n", err)
 		}
 	}
-}
-
-func downloadResolverList() error{
-		
-	out, err := os.Create("resolvers.txt")
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	resp, err := http.Get("https://raw.githubusercontent.com/janmasarik/resolvers/master/resolvers.txt")
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

@@ -1,7 +1,10 @@
 package util
 
 import (
+	"io"
+	"os"
 	"strings"
+	"net/http"	
 )
 
 //Insert func
@@ -65,4 +68,27 @@ func ValidateDNSServers(servers []string) []string{
 	}
 
 	return res
+}
+
+//DownloadResolverList func
+func DownloadResolverList() error{
+		
+	out, err := os.Create("resolvers.txt")
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	resp, err := http.Get("https://raw.githubusercontent.com/janmasarik/resolvers/master/resolvers.txt")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
