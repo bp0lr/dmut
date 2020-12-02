@@ -22,7 +22,7 @@ func GetDNSQueryResponse(fqdn string, dnsServers []string, dnsTimeOut int, retri
 	var res JobResponse
 	res.Domain = fqdn
 
-	qtype:= []uint16 {miekg.TypeA, miekg.TypeAAAA, miekg.TypeCNAME}
+	qtype:= []uint16 {miekg.TypeA, miekg.TypeCNAME}
 
 	dnsClient := dns.New(dnsServers, dnsTimeOut, retries)
 	ips, err := dnsClient.QueryMultiple(fqdn, qtype)
