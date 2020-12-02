@@ -26,7 +26,6 @@ import (
 
 var (
 	workersArg	      	int
-	dnsTimeOutArg		int
 	dnsRetriesArg		int
 	mutationsDic		string
 	urlArg            	string
@@ -62,7 +61,6 @@ func main() {
 	flag.BoolVar(&updateDNSArg, "update-dnslist", false, "Use this dns server list separated by ,")
 	flag.BoolVar(&ipArg, "show-ip", false, "Display info for valid results")
 	flag.BoolVar(&simulateArg, "simulate", false, "Display info about the job without run it")
-	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
 	flag.IntVar(&dnsRetriesArg, "dns-retries", 3, "Amount of retries for failed dns queries")
 
 	flag.Parse()
@@ -83,10 +81,6 @@ func main() {
 		workers = workersArg
 	}
 	
-	if(dnsTimeOutArg == 0 || dnsTimeOutArg > 10000) {
-		dnsTimeOutArg = 500
-	}
-
 	if(verboseArg){
 		fmt.Printf("[+] Workers: %v\n", workers)
 	}
@@ -139,7 +133,6 @@ func main() {
 	if(len(dnsServers) > 0 ){
 		if(verboseArg){
 			fmt.Printf("[+] we are using this dns servers: %v\n", dnsServers)
-			fmt.Printf("[+] Current dns timeout is: %v\n", dnsTimeOutArg)
 		}
 	}
 
@@ -167,7 +160,7 @@ func main() {
 	}
 
 	for _, value := range jobs {
-		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg, dnsRetriesArg)
+		processDomain(workers, value, alterations, outputFile, dnsRetriesArg)
 	}
 
 	//if we didn't found anything, delete the result file.
@@ -181,7 +174,7 @@ func main() {
 	}	
 }
 
-func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsTimeout int, dnsRetries int){
+func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsRetries int){
 
 	_, err := url.Parse(domain)
 	if err != nil {
@@ -282,7 +275,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		go func() {
 			for task := range jobs {				
 				fullDomain:= task + "." + job.sld + "." + job.tld + "."
-				processDNS(&wg, fullDomain, outputFile, dnsTimeout, dnsRetries)
+				processDNS(&wg, fullDomain, outputFile, dnsRetries)
 			}
 			wg.Done()
 		}()
@@ -296,7 +289,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	wg.Wait()	
 }
 
-func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeout int, dnsRetries int) {
+func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsRetries int) {
 
 	trimDomain:= util.TrimLastPoint(domain, ".")
 
@@ -304,7 +297,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeo
 		fmt.Printf("[+] Testing: %v\n", domain)
 	}
 
-	result, err:= resolver.GetDNSQueryResponse(domain, dnsServers, dnsTimeout, dnsRetries)
+	result, err:= resolver.GetDNSQueryResponse(domain, dnsServers, dnsRetries)
 	if err == nil && result.Data.StatusCode != "NXDOMAIN" {
 		
 		//fmt.Printf("res: %v\n", result.Data.Raw)

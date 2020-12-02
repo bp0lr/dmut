@@ -17,7 +17,7 @@ type JobResponse struct {
 }
 
 //GetDNSQueryResponse desc
-func GetDNSQueryResponse(fqdn string, dnsServers []string, dnsTimeout int, retries int) (JobResponse, error) {
+func GetDNSQueryResponse(fqdn string, dnsServers []string, retries int) (JobResponse, error) {
 	var res JobResponse
 	res.Domain = fqdn
 
