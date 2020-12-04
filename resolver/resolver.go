@@ -1,7 +1,8 @@
 package resolver
 
 import (	
-	//"fmt"
+	
+	"fmt"
 
 	miekg "github.com/miekg/dns"
 	dns "github.com/bp0lr/dmut/dns"
@@ -24,10 +25,18 @@ func GetDNSQueryResponse(fqdn string, dnsTimeOut int, retries int, errorLimit in
 	// I prefer to make a single query for each type, stop it if a have found something to win some milliseconds.
 	for _, value := range qtype{		
 		dnsClient := dns.New(dnsTimeOut, retries, errorLimit)
-		ips, err := dnsClient.Query(fqdn, value)
+		resp, err := dnsClient.Query(fqdn, value)
+
+		fmt.Printf("-----------------------------\n")
+		fmt.Printf("req: %v\n", resp.OriReq)
+		fmt.Printf("res: %v\n", resp.OriRes)
+		fmt.Printf("resLen: %v\n", len(resp.OriRes))
+		fmt.Printf("-----------------------------\n")
+			
+
 		if err == nil {
 			res.Status = true
-			res.Data = *ips
+			res.Data = *resp
 
 			return res, nil
 		}

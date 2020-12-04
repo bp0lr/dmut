@@ -74,9 +74,9 @@ func (c *Client) Query(host string, requestType uint16) (*DNSData, error) {
 // QueryMultiple sends a provided dns request and return the data
 func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, error) {
 	var (
-		dnsdata DNSData
-		err     error
-		msg     dns.Msg
+		dnsdata 	DNSData
+		err     	error
+		msg     	dns.Msg
 	)
 
 
@@ -110,29 +110,23 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 		for i := 0; i < c.maxRetries; i++ {
 
 			val:=dnsManager.ReturnRandomDNSServerEntry();
-			//fmt.Printf("voy a usar: %v, errors: %v\n", val.Host, val.Errors)
-	
 			resolver := val.Host
+			fmt.Printf("doing a new request using: %v\n", resolver)
 
 			var resp *dns.Msg
 			resp, _, err = cli.Exchange(&msg, resolver)
 			if err != nil {
-
 				dnsManager.ReportDNSError(val.Host, c.errorLimit)
 				fmt.Printf("err: %v\n", err)
 				continue
 			}
 
-			fmt.Printf("-----------------------------\nres: %v\nDMSGRESP: %v\n-----------------------------\n", resp.String(), msg.Answer)
 			dnsdata.Host = host
 			dnsdata.Raw += resp.String()
 			dnsdata.StatusCode = dns.RcodeToString[resp.Rcode]
 			dnsdata.Resolver = append(dnsdata.Resolver, resolver)
-
-			// In case we got some error from the server, return.
-			if resp != nil && resp.Rcode != dns.RcodeSuccess {
-				break
-			}
+			dnsdata.OriReq = msg.String()
+			dnsdata.OriRes = resp.String()
 
 			dnsdata.ParseFromMsg(resp)
 			break
@@ -199,6 +193,9 @@ type DNSData struct {
 	TXT        []string `json:"txt,omitempty"`
 	Raw        string   `json:"raw,omitempty"`
 	StatusCode string   `json:"status_code,omitempty"`
+	OriRes		string
+	OriReq		string
+	Canceled	bool
 }
 
 // ParseFromMsg and enrich data
