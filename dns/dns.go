@@ -13,6 +13,8 @@ import (
 	"time"
 	"fmt"
 
+	dnsManager	"github.com/bp0lr/dmut/dnsManager"
+
 	"github.com/miekg/dns"
 )
 
@@ -21,18 +23,17 @@ type Client struct {
 	resolvers  	[]string
 	maxRetries 	int
 	dnsTimeOut	int
-	rand       	*rand.Rand
+	errorLimit	int
 	mutex      	*sync.Mutex
 }
 
 // New creates a new dns client
-func New(baseResolvers []string, dnsTimeOut int, maxRetries int) *Client {
+func New(dnsTimeOut int, maxRetries int, errorLimit int) *Client {
 	client := Client{
-		rand:       rand.New(rand.NewSource(time.Now().UnixNano())),
 		mutex:      &sync.Mutex{},
 		dnsTimeOut: dnsTimeOut,
 		maxRetries: maxRetries,
-		resolvers:  baseResolvers,
+		errorLimit: errorLimit,
 	}
 	return &client
 }
@@ -78,6 +79,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 		msg     dns.Msg
 	)
 
+
 	msg.Id = dns.Id()
 	msg.RecursionDesired = true
 	msg.Question = make([]dns.Question, 1)
@@ -106,10 +108,17 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 
 		cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
 		for i := 0; i < c.maxRetries; i++ {
-			resolver := c.resolvers[rand.Intn(len(c.resolvers))]
+
+			val:=dnsManager.ReturnRandomDNSServerEntry();
+			//fmt.Printf("voy a usar: %v, errors: %v\n", val.Host, val.Errors)
+	
+			resolver := val.Host
+
 			var resp *dns.Msg
 			resp, _, err = cli.Exchange(&msg, resolver)
 			if err != nil {
+
+				dnsManager.ReportDNSError(val.Host, c.errorLimit)
 				fmt.Printf("err: %v\n", err)
 				continue
 			}

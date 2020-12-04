@@ -13,7 +13,8 @@ import (
 	"io/ioutil"
 	"strings"
 	"net/url"
-		
+	
+	dnsManager	"github.com/bp0lr/dmut/dnsManager"
 	util		"github.com/bp0lr/dmut/util"
 	tables		"github.com/bp0lr/dmut/tables"
 	resolver	"github.com/bp0lr/dmut/resolver"
@@ -26,6 +27,7 @@ var (
 	workersArg	      	int
 	dnsRetriesArg		int
 	dnsTimeOutArg		int
+	dnserrorLimitArg	int
 	mutationsDic		string
 	urlArg            	string
 	outputFileArg     	string
@@ -60,6 +62,7 @@ func main() {
 	flag.BoolVar(&ipArg, "show-ip", false, "Display info for valid results")
 	flag.IntVar(&dnsRetriesArg, "dns-retries", 3, "Amount of retries for failed dns queries")
 	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
+	flag.IntVar(&dnserrorLimitArg, "dns-errorLimit", 25, "How many errors until we disable a dns server")
 
 	flag.Parse()
 
@@ -123,13 +126,13 @@ func main() {
 		}
 	}
 
-	dnsServers = util.ValidateDNSServers(dnsServers)
-
+	dnsManager.GenerateDNSServersTable(dnsServers);
+			
 	if(verboseArg){
-		fmt.Printf("[+] Using dns server: %v\n", dnsServers)
+		fmt.Printf("[+] we are using this dns servers: %v\n", dnsManager.ReturnDNSServersSlice())
 		fmt.Printf("[+] Current dns timeout is: %v\n", dnsTimeOutArg)
 	}
-	
+
 	if(len(mutationsDic) == 0){
 		fmt.Printf("Error, you need to define a mutation file list using the arg -d\n")
 		return
@@ -142,12 +145,6 @@ func main() {
 		}else{
 			mutations, _ := ioutil.ReadFile(mutationsDic)
 			alterations = strings.Split(string(mutations), "\n")
-		}
-	}
-
-	if(len(dnsServers) > 0 ){
-		if(verboseArg){
-			fmt.Printf("[+] we are using this dns servers: %v\n", dnsServers)
 		}
 	}
 
@@ -175,7 +172,7 @@ func main() {
 	}
 
 	for _, value := range jobs {
-		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg, dnsRetriesArg)
+		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg, dnsRetriesArg, dnserrorLimitArg)
 	}
 
 	//if we didn't found anything, delete the result file.
@@ -187,9 +184,11 @@ func main() {
 			}
 		}
 	}	
+
+	dnsManager.PrintDNSServerList()
 }
 
-func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsTimeOut int, dnsRetries int){
+func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsTimeOut int, dnsRetries int, dnsErrorLimit int){
 
 	_, err := url.Parse(domain)
 	if err != nil {
@@ -220,7 +219,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		go func() {
 			for task := range jobs {				
 				fullDomain:= task + "." + job.sld + "." + job.tld + "."
-				processDNS(&wg, fullDomain, outputFile, dnsTimeOut, dnsRetries)
+				processDNS(&wg, fullDomain, outputFile, dnsTimeOut, dnsRetries, dnsErrorLimit)
 			}
 			wg.Done()
 		}()
@@ -234,7 +233,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	wg.Wait()	
 }
 
-func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeOut int, dnsRetries int) {
+func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeOut int, dnsRetries int, dnsErrorLimit int) {
 
 	trimDomain:= util.TrimLastPoint(domain, ".")
 
@@ -242,7 +241,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 		fmt.Printf("[+] Testing: %v\n", domain)
 	}
 
-	result, err:= resolver.GetDNSQueryResponse(domain, dnsServers, dnsTimeOut, dnsRetries)
+	result, err:= resolver.GetDNSQueryResponse(domain, dnsTimeOut, dnsRetries, dnsErrorLimit)
 		
 	if (err == nil && result.Status) {		
 		

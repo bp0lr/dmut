@@ -1,6 +1,8 @@
 package resolver
 
 import (	
+	//"fmt"
+
 	miekg "github.com/miekg/dns"
 	dns "github.com/bp0lr/dmut/dns"
 )
@@ -13,7 +15,7 @@ type JobResponse struct {
 }
 
 //GetDNSQueryResponse desc
-func GetDNSQueryResponse(fqdn string, dnsServers []string, dnsTimeOut int, retries int) (JobResponse, error) {
+func GetDNSQueryResponse(fqdn string, dnsTimeOut int, retries int, errorLimit int) (JobResponse, error) {
 	var res JobResponse
 	res.Domain = fqdn
 
@@ -21,7 +23,7 @@ func GetDNSQueryResponse(fqdn string, dnsServers []string, dnsTimeOut int, retri
 
 	// I prefer to make a single query for each type, stop it if a have found something to win some milliseconds.
 	for _, value := range qtype{		
-		dnsClient := dns.New(dnsServers, dnsTimeOut, retries)
+		dnsClient := dns.New(dnsTimeOut, retries, errorLimit)
 		ips, err := dnsClient.Query(fqdn, value)
 		if err == nil {
 			res.Status = true

@@ -51,27 +51,6 @@ func TrimChars(s string) string {
 	return strings.TrimRight(s, ".")
 }
 
-//ValidateDNSServers func
-func ValidateDNSServers(servers []string) []string{
-
-	var res []string
-
-	for _, value := range servers{		
-		if(len(value)< 1){
-			continue
-		}
-
-		s := strings.Split(value, ":")
-		if(len(s) > 1){
-			res = append(res, value)
-		} else{
-			res = append(res, value+":53")
-		}
-	}
-
-	return res
-}
-
 //DownloadResolverList func
 func DownloadResolverList() (string, error){
 	
