@@ -73,17 +73,18 @@ func (c *Client) Query(host string, requestType uint16) (*DNSData, error) {
 
 // QueryMultiple sends a provided dns request and return the data
 func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, error) {
+	
 	var (
 		dnsdata 	DNSData
 		err     	error
 		msg     	dns.Msg
 	)
 
-
 	msg.Id = dns.Id()
 	msg.RecursionDesired = true
 	msg.Question = make([]dns.Question, 1)
 
+	cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
 	for _, requestType := range requestTypes {
 		name := dns.Fqdn(host)
 
@@ -104,9 +105,9 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			Qtype:  requestType,
 			Qclass: dns.ClassINET,
 		}
+		
 		msg.Question[0] = question
 
-		cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
 		for i := 0; i < c.maxRetries; i++ {
 
 			val:=dnsManager.ReturnRandomDNSServerEntry();
@@ -134,7 +135,6 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 	}
 
 	dnsdata.dedupe()
-
 	return &dnsdata, err
 }
 
