@@ -249,8 +249,12 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 			return
 		}			
 		
+		fmt.Printf("-----------------------------\n")
+		fmt.Printf("req: %v\n", result.Data.OriReq)
+		fmt.Printf("res: %v\n", result.Data.OriRes)
+		fmt.Printf("resLen: %v\n", len(result.Data.OriRes))
+		fmt.Printf("-----------------------------\n")
 		fmt.Printf("---------------------------------\nstatus: %v\n", result.Data.StatusCode)
-		fmt.Printf("%v\n---------------------------------\n", result)
 		
 		if outputFileArg != "" {
 			if(ipArg){	
