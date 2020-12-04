@@ -244,8 +244,12 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 
 	result, err:= resolver.GetDNSQueryResponse(domain, dnsServers, dnsTimeOut, dnsRetries)
 	
+	
 	if (err == nil && result.Data.StatusCode != "NXDOMAIN") {
-		fmt.Printf("status: %v\n", result.Data.StatusCode)
+		
+		fmt.Printf("---------------------------------\nstatus: %v\n", result.Data.StatusCode)
+		fmt.Printf("%v\n---------------------------------\n", result)
+		
 		if outputFileArg != "" {
 			if(ipArg){	
 				outputFile.WriteString(trimDomain + ":" + util.TrimChars(strings.Join(result.Data.CNAME,",")) + util.TrimChars(strings.Join(result.Data.A,",")) + "\n")
