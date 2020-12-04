@@ -72,7 +72,7 @@ func ReportDNSError(host string, errorsLimit int){
 		if(v.Host == host){
 			dnsServersTable[id].Errors = dnsServersTable[id].Errors + 1
 			if(dnsServersTable[id].Errors > errorsLimit){
-				fmt.Printf("CANCELING THIS SERVER: %v || errors: %v\n", host, dnsServersTable[id].Errors)
+				//fmt.Printf("CANCELING THIS SERVER: %v || errors: %v\n", host, dnsServersTable[id].Errors)
 				dnsServersTable[id].Status = false
 			}	
 		}

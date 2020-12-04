@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"fmt"
+	//"fmt"
 
 	dnsManager	"github.com/bp0lr/dmut/dnsManager"
 
@@ -97,7 +97,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 					return nil, err
 				}
 			}
-			msg.SetEdns0(512, false)
+			msg.SetEdns0(1024, false)
 		}
 
 		question := dns.Question{
@@ -117,7 +117,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			//fmt.Printf("msg: %v\n", msg.String())
 			if err != nil {
 				dnsManager.ReportDNSError(val.Host, c.errorLimit)
-				fmt.Printf("err: %v\n", err)
+				//fmt.Printf("err: %v\n", err)
 				continue;
 			}
 

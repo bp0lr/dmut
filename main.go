@@ -248,14 +248,13 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 		if(result.Data.StatusCode == "NXDOMAIN"){
 			return
 		}			
-		
-		
-		fmt.Printf("-----------------------------\n")
-		fmt.Printf("req: %v\n", result.Data.OriReq)
-		fmt.Printf("res: %v\n", result.Data.OriRes)
-		fmt.Printf("resLen: %v\n", len(result.Data.OriRes))
-		fmt.Printf("-----------------------------\n")
-		fmt.Printf("---------------------------------\nstatus: %v\n", result.Data.StatusCode)
+				
+		//fmt.Printf("-----------------------------\n")
+		//fmt.Printf("req: %v\n", result.Data.OriReq)
+		//fmt.Printf("res: %v\n", result.Data.OriRes)
+		//fmt.Printf("resLen: %v\n", len(result.Data.OriRes))
+		//fmt.Printf("-----------------------------\n")
+		//fmt.Printf("---------------------------------\nstatus: %v\n", result.Data.StatusCode)
 		
 		if outputFileArg != "" {
 			if(ipArg){	
