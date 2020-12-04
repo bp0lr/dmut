@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
-	//"fmt"
+	//"time"
+	"fmt"
 
 	dnsManager	"github.com/bp0lr/dmut/dnsManager"
 
@@ -47,11 +47,11 @@ func (c *Client) Resolve(host string) (*DNSData, error) {
 // Do sends a provided dns request and return the raw native response
 func (c *Client) Do(msg *dns.Msg) (resp *dns.Msg, err error) {
 
-	cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
+	//cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
 
 	for i := 0; i < c.maxRetries; i++ {
 		resolver := c.resolvers[rand.Intn(len(c.resolvers))]
-		resp, _ , err = cli.Exchange(msg, resolver)
+		resp  , err = dns.Exchange(msg, resolver)
 		if err != nil {
 			//fmt.Printf("err: %v\n", err)
 			continue
@@ -84,7 +84,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 	msg.RecursionDesired = true
 	msg.Question = make([]dns.Question, 1)
 
-	cli := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
+	//cli := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
 	for _, requestType := range requestTypes {
 		name := dns.Fqdn(host)
 
@@ -97,7 +97,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 					return nil, err
 				}
 			}
-			msg.SetEdns0(1024, false)
+			msg.SetEdns0(4096, false)
 		}
 
 		question := dns.Question{
@@ -113,12 +113,16 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			resolver := val.Host
 			
 			var resp *dns.Msg
-			resp, _, err = cli.Exchange(&msg, resolver)
+			resp, err = dns.Exchange(&msg, resolver)
 			//fmt.Printf("msg: %v\n", msg.String())
 			if err != nil {
 				dnsManager.ReportDNSError(val.Host, c.errorLimit)
-				//fmt.Printf("err: %v\n", err)
+				fmt.Printf("err: %v\n", err)
 				continue;
+			}
+
+			if(dns.RcodeToString[resp.Rcode] != "NXDOMAIN"){
+				fmt.Printf("[VALID] %v, %v\n", host, dns.RcodeToString[resp.Rcode])
 			}
 
 			dnsdata.Host = host
