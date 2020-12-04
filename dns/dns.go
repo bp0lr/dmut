@@ -84,7 +84,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 	msg.RecursionDesired = true
 	msg.Question = make([]dns.Question, 1)
 
-	cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
+	cli := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
 	for _, requestType := range requestTypes {
 		name := dns.Fqdn(host)
 
@@ -97,7 +97,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 					return nil, err
 				}
 			}
-			msg.SetEdns0(4096, false)
+			msg.SetEdns0(512, false)
 		}
 
 		question := dns.Question{
@@ -107,19 +107,18 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 		}
 		
 		msg.Question[0] = question
-
-		for i := 0; i < c.maxRetries; i++ {
-
+		
+		for i := 0; i < c.maxRetries; i++ {			
 			val:=dnsManager.ReturnRandomDNSServerEntry();
 			resolver := val.Host
-			fmt.Printf("doing a new request using: %v\n", resolver)
-
+			
 			var resp *dns.Msg
 			resp, _, err = cli.Exchange(&msg, resolver)
+			//fmt.Printf("msg: %v\n", msg.String())
 			if err != nil {
 				dnsManager.ReportDNSError(val.Host, c.errorLimit)
 				fmt.Printf("err: %v\n", err)
-				continue
+				continue;
 			}
 
 			dnsdata.Host = host

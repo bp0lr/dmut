@@ -249,6 +249,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 			return
 		}			
 		
+		
 		fmt.Printf("-----------------------------\n")
 		fmt.Printf("req: %v\n", result.Data.OriReq)
 		fmt.Printf("res: %v\n", result.Data.OriRes)
