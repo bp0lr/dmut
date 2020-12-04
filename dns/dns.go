@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	//"fmt"
+	"fmt"
 
 	"github.com/miekg/dns"
 )
@@ -110,7 +110,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			var resp *dns.Msg
 			resp, _, err = cli.Exchange(&msg, resolver)
 			if err != nil {
-				//fmt.Printf("err: %v\n", err)
+				fmt.Printf("err: %v\n", err)
 				continue
 			}
 

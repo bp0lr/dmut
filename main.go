@@ -245,8 +245,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 	result, err:= resolver.GetDNSQueryResponse(domain, dnsServers, dnsTimeOut, dnsRetries)
 	
 	
-	if (err == nil && result.Data.StatusCode != "NXDOMAIN") {
-		
+	if (err == nil && result.Status) {		
 		fmt.Printf("---------------------------------\nstatus: %v\n", result.Data.StatusCode)
 		fmt.Printf("%v\n---------------------------------\n", result)
 		
@@ -264,7 +263,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 		}
 	} else{
 		if(verboseArg){
-			//fmt.Printf("err: %v\n", err)
+			fmt.Printf("status blank err: %v\n", err)
 		}
 	}
 }
