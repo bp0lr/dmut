@@ -123,7 +123,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 				continue
 			}
 
-			fmt.Printf("-----------------------------\nres: %v\n-----------------------------\n", resp.String())
+			fmt.Printf("-----------------------------\nres: %v\nDMSGRESP: %v\n-----------------------------\n", resp.String(), msg.Answer)
 			dnsdata.Host = host
 			dnsdata.Raw += resp.String()
 			dnsdata.StatusCode = dns.RcodeToString[resp.Rcode]
