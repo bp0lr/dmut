@@ -1,9 +1,6 @@
 package resolver
 
 import (	
-	
-	//"fmt"
-
 	dns "github.com/bp0lr/dmut/dns"
 )
 

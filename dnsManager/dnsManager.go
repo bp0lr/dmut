@@ -43,7 +43,7 @@ func ReturnFullServersList()([]DNSServerEntry, int){
 func ReturnRandomDNSServerEntry() DNSServerEntry{
 	
 	if(len(dnsServersTable) == 0){
-		fmt.Printf("All our dns server has reported to many errors. I can't continue.")
+		fmt.Printf("Every DNS Server in our list has over past our error limit. Please try increasing this number using the flag ---dns-errorLimit and playing a bit with --dns-timeout")
 		os.Exit(0)
 	}
 
@@ -111,8 +111,6 @@ func ReturnDNSServersSlice()[]string{
 
 //PrintDNSServerList desc
 func PrintDNSServerList(){
-	
-
 	var separator = " ----------------------------------------- "
 
 	fmt.Println("")

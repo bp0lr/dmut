@@ -18,8 +18,7 @@ import (
 	util		"github.com/bp0lr/dmut/util"
 	tables		"github.com/bp0lr/dmut/tables"
 	resolver	"github.com/bp0lr/dmut/resolver"
-	//dns 		"github.com/bp0lr/dmut/dns"
-
+	
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
 	
