@@ -18,9 +18,12 @@ import (
 	util		"github.com/bp0lr/dmut/util"
 	tables		"github.com/bp0lr/dmut/tables"
 	resolver	"github.com/bp0lr/dmut/resolver"
+	//dns 		"github.com/bp0lr/dmut/dns"
 
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
+	
+	miekg		"github.com/miekg/dns"
 )
 
 var (
@@ -235,18 +238,41 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 
 func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeOut int, dnsRetries int, dnsErrorLimit int) {
 
-	trimDomain:= util.TrimLastPoint(domain, ".")
-
 	if verboseArg {
 		fmt.Printf("[+] Testing: %v\n", domain)
 	}
 
-	result, err:= resolver.GetDNSQueryResponse(domain, dnsTimeOut, dnsRetries, dnsErrorLimit)
+	qtype:= []uint16 {miekg.TypeCNAME, miekg.TypeA}
+	//qtype:= []uint16 {miekg.TypeCNAME}
+	// I prefer to make a single query for each type, stop it if a have found something to win some milliseconds.
+	for _, value := range qtype{		
 		
-	if (err == nil && result.Status) {		
+		//fmt.Printf("[%v] send type %v\n", domain, value)
+		resp, err := resolver.GetDNSQueryResponse(domain, value, dnsTimeOut, dnsRetries, dnsErrorLimit)
+		if(err != nil){
+			fmt.Printf("err resolver: %v\n", err)
+		}
+
+		if(!resp.Status){
+			continue
+		}
+
+		found:=processResponse(domain, resp, outputFile)
+		if(found){
+			//fmt.Printf("encontre %v, rompo!\n", domain)
+			break
+		}
+	}	
+}
+
+func processResponse(domain string, result resolver.JobResponse, outputFile *os.File)bool{
+	
+	if (result.Status) {		
 		
+		trimDomain:= util.TrimLastPoint(domain, ".")
+
 		if(result.Data.StatusCode == "NXDOMAIN"){
-			return
+			return false
 		}			
 				
 		//fmt.Printf("-----------------------------\n")
@@ -268,9 +294,9 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 		}else{
 			fmt.Printf("%v\n", trimDomain)
 		}
-	} else{
-		if(verboseArg){
-			fmt.Printf("status blank err: %v\n", err)
-		}
+
+		return true
 	}
+
+	return false
 }

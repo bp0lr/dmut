@@ -123,13 +123,14 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			}
 
 			if(resp.Truncated){
-				fmt.Printf("we have a truncated response!")
+				fmt.Printf("----------------------------\nwe have a truncated response!\n----------------------------\n")
+				
 			}
 			
 
-			if(dns.RcodeToString[resp.Rcode] != "NXDOMAIN"){
-				fmt.Printf("[VALID] %v, %v\n", host, dns.RcodeToString[resp.Rcode])
-			}
+			//if(dns.RcodeToString[resp.Rcode] != "NXDOMAIN"){
+			//	fmt.Printf("[VALID] %v, %v\n", host, dns.RcodeToString[resp.Rcode])
+			//}
 
 			dnsdata.Host = host
 			dnsdata.Raw += resp.String()
