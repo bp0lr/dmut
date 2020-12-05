@@ -39,6 +39,7 @@ var (
 	verboseArg        	bool
 	updateDNSArg		bool
 	ipArg				bool
+	statsArg			bool
 	dnsServers 			[]string	
 )
 
@@ -49,6 +50,16 @@ type jobL struct {
 	trd  		string
 	tasks		[]string
 }
+
+type stats struct{
+	queries	int
+	domains int
+	mutations int
+	founds	int
+}
+
+//GlobalStats desc
+var GlobalStats stats
 
 func main() {
 
@@ -63,6 +74,7 @@ func main() {
 	flag.StringVarP(&dnsArg, "dnsServers", "l", "", "Use DNS servers from a list separated by ,")
 	flag.BoolVar(&updateDNSArg, "update-dnslist", false, "Download a list of periodically validated public DNS resolvers")
 	flag.BoolVar(&ipArg, "show-ip", false, "Display info for valid results")
+	flag.BoolVar(&statsArg, "show-stats", false, "Display stats about the current job")
 	flag.IntVar(&dnsRetriesArg, "dns-retries", 3, "Amount of retries for failed dns queries")
 	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
 	flag.IntVar(&dnserrorLimitArg, "dns-errorLimit", 25, "How many errors until we disable a dns server")
@@ -82,8 +94,11 @@ func main() {
 
 	//concurrency
 	workers := 25
-	if workersArg > 0  && workersArg < 100 {
+	if workersArg > 0  &&  workersArg < 151 {
 		workers = workersArg
+	}else{
+		fmt.Printf("[+] Workers amount should be between 1 and 150.\n")
+		fmt.Printf("[+] The number of workers was set to 25.\n")		
 	}
 	
 	if(dnsTimeOutArg == 0 || dnsTimeOutArg > 10000) {
@@ -151,6 +166,8 @@ func main() {
 		}
 	}
 
+	GlobalStats.mutations = len(alterations)
+
 	var outputFile *os.File
 	var err0 error
 	if outputFileArg != "" {
@@ -174,6 +191,8 @@ func main() {
 		jobs = append(jobs, urlArg)
 	}
 
+	GlobalStats.domains = len(jobs)
+
 	for _, value := range jobs {
 		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg, dnsRetriesArg, dnserrorLimitArg)
 	}
@@ -188,7 +207,15 @@ func main() {
 		}
 	}	
 
-	dnsManager.PrintDNSServerList()
+	if(statsArg){
+		dnsManager.PrintDNSServerList()
+		fmt.Printf(" | Domains:      %24v | \n", GlobalStats.domains)
+		fmt.Printf(" | mutations:    %24v | \n", GlobalStats.mutations)
+		fmt.Printf(" | Queries:      %24v | \n", GlobalStats.queries)
+		fmt.Printf(" | Sub Found:    %24v | \n", GlobalStats.founds)
+		fmt.Printf(" -----------------------------------------\n")
+	}
+	
 }
 
 func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsTimeOut int, dnsRetries int, dnsErrorLimit int){
@@ -209,6 +236,8 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	job.trd = domParse.TRD				//trd: lala.test.val
 	
 	job.tasks = tables.GenerateTables(job.trd, alterations)
+
+	GlobalStats.queries = GlobalStats.queries + len(job.tasks)
 	
 	if(verboseArg){
 		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
@@ -278,25 +307,27 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 
 		if(qType == miekg.TypeCNAME){
 			if(len(result.Data.CNAME) < 1){
-				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
+				//fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
 				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}	
 			
-			fmt.Printf("we have a valid CNAME value for %v!\n", domain)
+			//fmt.Printf("we have a valid CNAME value for %v!\n", domain)
 		}
 
 		if(qType == miekg.TypeA){
 			if(len(result.Data.A) < 1){
-				fmt.Printf("A NOERROR was reported for domain %v but A was empty.\n", domain)
+				//fmt.Printf("A NOERROR was reported for domain %v but A was empty.\n", domain)
 				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}
 			
-			fmt.Printf("we have a valid A value for %v!\n", domain)
+			//fmt.Printf("we have a valid A value for %v!\n", domain)
 			
 		}		
 				
+		GlobalStats.founds = GlobalStats.founds + 1
+
 		if outputFileArg != "" {
 			if(ipArg){	
 				outputFile.WriteString(trimDomain + ":" + util.TrimChars(strings.Join(result.Data.CNAME,",")) + util.TrimChars(strings.Join(result.Data.A,",")) + "\n")
