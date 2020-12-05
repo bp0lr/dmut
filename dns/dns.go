@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	//"time"
+	"time"
 	"fmt"
 
 	dnsManager	"github.com/bp0lr/dmut/dnsManager"
@@ -80,12 +80,13 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 		msg     	dns.Msg
 	)
 
-	msg.Id = dns.Id()
-	msg.RecursionDesired = true
-	msg.Question = make([]dns.Question, 1)
-
 	//cli := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
 	for _, requestType := range requestTypes {
+
+		msg.Id = dns.Id()
+		msg.RecursionDesired = true
+		msg.Question = make([]dns.Question, 1)
+
 		name := dns.Fqdn(host)
 
 		// In case of PTR adjust the domain name
@@ -97,7 +98,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 					return nil, err
 				}
 			}
-			msg.SetEdns0(dns.MaxMsgSize, false)
+			msg.SetEdns0(dns.MinMsgSize, false)
 		}
 
 		question := dns.Question{
@@ -122,29 +123,44 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 				continue;
 			}
 
-			if(resp.Truncated){
-				fmt.Printf("----------------------------\nwe have a truncated response!\n----------------------------\n")
-				
+			if resp != nil && resp.Truncated {
+				fmt.Printf("[truncate]: %v\n", msg.Question[0].String())
+				tcpClient := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
+				resp, _, err = tcpClient.Exchange(&msg, resolver)
 			}
-			
 
-			//if(dns.RcodeToString[resp.Rcode] != "NXDOMAIN"){
-			//	fmt.Printf("[VALID] %v, %v\n", host, dns.RcodeToString[resp.Rcode])
-			//}
+			if err != nil {
+				dnsManager.ReportDNSError(val.Host, c.errorLimit)
+				fmt.Printf("err: %v\n", err)
+				continue;
+			}
+
+			
 
 			dnsdata.Host = host
 			dnsdata.Raw += resp.String()
 			dnsdata.StatusCode = dns.RcodeToString[resp.Rcode]
+			fmt.Printf("[%v] : %v\n", host, dnsdata.StatusCode)
 			dnsdata.Resolver = append(dnsdata.Resolver, resolver)
 			dnsdata.OriReq = msg.String()
 			dnsdata.OriRes = resp.String()
+
+			if(dnsdata.StatusCode == "NOERROR"){
+				fmt.Printf("-----------------------------\n")
+				fmt.Printf("req: %v\n", dnsdata.OriReq)
+				fmt.Printf("res: %v\n", dnsdata.OriRes)
+				fmt.Printf("resLen: %v\n", len(dnsdata.OriRes))
+				fmt.Printf("-----------------------------\n")
+				fmt.Printf("---------------------------------\nstatus: %v\n", dnsdata.StatusCode)
+			}
+
 
 			dnsdata.ParseFromMsg(resp)
 			break
 		}
 	}
 
-	dnsdata.dedupe()
+	//dnsdata.dedupe()
 	return &dnsdata, err
 }
 

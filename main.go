@@ -242,8 +242,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 		fmt.Printf("[+] Testing: %v\n", domain)
 	}
 
-	qtype:= []uint16 {miekg.TypeCNAME, miekg.TypeA}
-	//qtype:= []uint16 {miekg.TypeCNAME}
+	qtype:= []uint16 {miekg.TypeCNAME, miekg.TypeA}	
 	// I prefer to make a single query for each type, stop it if a have found something to win some milliseconds.
 	for _, value := range qtype{		
 		
@@ -257,7 +256,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 			continue
 		}
 
-		found:=processResponse(domain, resp, outputFile)
+		found:=processResponse(domain, resp, outputFile, value)
 		if(found){
 			//fmt.Printf("encontre %v, rompo!\n", domain)
 			break
@@ -265,23 +264,32 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 	}	
 }
 
-func processResponse(domain string, result resolver.JobResponse, outputFile *os.File)bool{
+func processResponse(domain string, result resolver.JobResponse, outputFile *os.File, qType uint16)bool{
 	
 	if (result.Status) {		
 		
 		trimDomain:= util.TrimLastPoint(domain, ".")
-
-		if(result.Data.StatusCode == "NXDOMAIN"){
+		if(result.Data.StatusCode != "NOERROR"){
+			if(verboseArg){
+				fmt.Printf("[%v] code: %v\n", domain, result.Data.StatusCode)
+			}
 			return false
-		}			
+		}
+			
+		if(qType == miekg.TypeCNAME){
+			if(len(result.Data.CNAME) < 1){
+				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
+				return false
+			}
+		}
+
+		if(qType == miekg.TypeA){
+			if(len(result.Data.A) < 1){
+				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
+				return false
+			}
+		}		
 				
-		//fmt.Printf("-----------------------------\n")
-		//fmt.Printf("req: %v\n", result.Data.OriReq)
-		//fmt.Printf("res: %v\n", result.Data.OriRes)
-		//fmt.Printf("resLen: %v\n", len(result.Data.OriRes))
-		//fmt.Printf("-----------------------------\n")
-		//fmt.Printf("---------------------------------\nstatus: %v\n", result.Data.StatusCode)
-		
 		if outputFileArg != "" {
 			if(ipArg){	
 				outputFile.WriteString(trimDomain + ":" + util.TrimChars(strings.Join(result.Data.CNAME,",")) + util.TrimChars(strings.Join(result.Data.A,",")) + "\n")
