@@ -80,7 +80,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 		msg     	dns.Msg
 	)
 
-	//cli := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
+	cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
 	for _, requestType := range requestTypes {
 
 		msg.Id = dns.Id()
@@ -114,7 +114,9 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			resolver := val.Host
 			
 			var resp *dns.Msg
-			resp, err = dns.Exchange(&msg, resolver)
+			//resp, err = dns.Exchange(&msg, resolver)
+			resp, _, err = cli.Exchange(&msg, resolver)
+			
 			//fmt.Printf("msg: %v\n", msg.String())
 			
 			if err != nil {

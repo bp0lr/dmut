@@ -242,7 +242,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 		fmt.Printf("[+] Testing: %v\n", domain)
 	}
 
-	qtype:= []uint16 {miekg.TypeCNAME, miekg.TypeA}	
+	qtype:= []uint16 {miekg.TypeA, miekg.TypeCNAME}
 	// I prefer to make a single query for each type, stop it if a have found something to win some milliseconds.
 	for _, value := range qtype{		
 		
