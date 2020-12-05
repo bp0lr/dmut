@@ -121,7 +121,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			
 			if err != nil {
 				dnsManager.ReportDNSError(val.Host, c.errorLimit)
-				fmt.Printf("err: %v\n", err)
+				//fmt.Printf("err: %v\n", err)
 				continue;
 			}
 
