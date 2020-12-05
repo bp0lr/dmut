@@ -97,7 +97,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 					return nil, err
 				}
 			}
-			msg.SetEdns0(4096, false)
+			msg.SetEdns0(dns.MaxMsgSize, false)
 		}
 
 		question := dns.Question{
@@ -126,7 +126,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 				fmt.Printf("we have a truncated response!")
 			}
 			
-			
+
 			if(dns.RcodeToString[resp.Rcode] != "NXDOMAIN"){
 				fmt.Printf("[VALID] %v, %v\n", host, dns.RcodeToString[resp.Rcode])
 			}
