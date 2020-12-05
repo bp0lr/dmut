@@ -281,15 +281,20 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
 				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
-			}
+			}	
+			
+			fmt.Printf("we have a valid CNAME value for %v!\n", domain)
 		}
 
 		if(qType == miekg.TypeA){
 			if(len(result.Data.A) < 1){
-				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
+				fmt.Printf("A NOERROR was reported for domain %v but A was empty.\n", domain)
 				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}
+			
+			fmt.Printf("we have a valid A value for %v!\n", domain)
+			
 		}		
 				
 		if outputFileArg != "" {
