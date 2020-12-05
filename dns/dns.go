@@ -140,11 +140,12 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			dnsdata.Host = host
 			dnsdata.Raw += resp.String()
 			dnsdata.StatusCode = dns.RcodeToString[resp.Rcode]
-			fmt.Printf("[%v] : %v\n", host, dnsdata.StatusCode)
+			//fmt.Printf("[%v] : %v\n", host, dnsdata.StatusCode)
 			dnsdata.Resolver = append(dnsdata.Resolver, resolver)
 			dnsdata.OriReq = msg.String()
 			dnsdata.OriRes = resp.String()
 
+			/*
 			if(dnsdata.StatusCode == "NOERROR"){
 				fmt.Printf("-----------------------------\n")
 				fmt.Printf("req: %v\n", dnsdata.OriReq)
@@ -153,6 +154,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 				fmt.Printf("-----------------------------\n")
 				fmt.Printf("---------------------------------\nstatus: %v\n", dnsdata.StatusCode)
 			}
+			*/
 
 
 			dnsdata.ParseFromMsg(resp)
@@ -221,7 +223,6 @@ type DNSData struct {
 	StatusCode string   `json:"status_code,omitempty"`
 	OriRes		string
 	OriReq		string
-	Canceled	bool
 }
 
 // ParseFromMsg and enrich data

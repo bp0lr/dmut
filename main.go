@@ -275,10 +275,11 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 			}
 			return false
 		}
-			
+
 		if(qType == miekg.TypeCNAME){
 			if(len(result.Data.CNAME) < 1){
 				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
+				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}
 		}
@@ -286,6 +287,7 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 		if(qType == miekg.TypeA){
 			if(len(result.Data.A) < 1){
 				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
+				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}
 		}		
