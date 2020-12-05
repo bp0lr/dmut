@@ -115,12 +115,18 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 			var resp *dns.Msg
 			resp, err = dns.Exchange(&msg, resolver)
 			//fmt.Printf("msg: %v\n", msg.String())
+			
 			if err != nil {
 				dnsManager.ReportDNSError(val.Host, c.errorLimit)
 				fmt.Printf("err: %v\n", err)
 				continue;
 			}
 
+			if(resp.Truncated){
+				fmt.Printf("we have a truncated response!")
+			}
+			
+			
 			if(dns.RcodeToString[resp.Rcode] != "NXDOMAIN"){
 				fmt.Printf("[VALID] %v, %v\n", host, dns.RcodeToString[resp.Rcode])
 			}
