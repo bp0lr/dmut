@@ -233,9 +233,12 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	if(err != nil){
 		fmt.Printf("antiWild reported err: %v\n", err)
 	}
+
 	if(res.Status && res.Data.StatusCode != "NXDOMAIN"){
-		fmt.Printf("[%v] Wilcard Positive response. Canceling tasks.", domain)
+		fmt.Printf("[%v] Wilcard Positive response. Canceling tasks.\n", domain)
 		return
+	}else{
+		fmt.Printf("[%v] Wilcard Positive response OK. %v\n", domain, res.Data.StatusCode)
 	}
 
 	domParse, _:=tld.Parse(domain)
