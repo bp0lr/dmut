@@ -227,20 +227,12 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		return
 	}		
 	
-
 	//testing if domain response to wil card. If this is the case, we cancel this task.
-	res, err:= resolver.GetDNSQueryResponse("supposedtonotexistmyfriend."+domain, miekg.TypeA, dnsTimeOut, dnsRetries, dnsErrorLimit)
-	if(err != nil){
-		fmt.Printf("antiWild reported err: %v\n", err)
-	}
-
-	if(res.Status && res.Data.StatusCode != "NXDOMAIN"){
-		fmt.Printf("[%v] Wilcard Positive response. Canceling tasks.\n", domain)
+	if(checkWildCard(domain, dnsTimeOut, dnsRetries, dnsErrorLimit)){
+		fmt.Printf("[%v] dns wild card detected. Canceling this job!\n", domain)
 		return
-	}else{
-		fmt.Printf("[%v] Wilcard Positive response OK. %v\n", domain, res.Data.StatusCode)
 	}
-
+	
 	domParse, _:=tld.Parse(domain)
 	
 	var job jobL	
@@ -358,4 +350,31 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 	}
 
 	return false
+}
+
+func checkWildCard(domain string, dnsTimeOut int, dnsRetries int, dnsErrorLimit int)bool{
+	
+	var res resolver.JobResponse
+	var err error
+	var wildcard bool = false
+
+	var domains = []string{"supposedtonotexistmyfriend."+domain, "supposedtonotexistmyfriend"+domain}
+
+	for _, v := range domains{
+		res, err = resolver.GetDNSQueryResponse(v, miekg.TypeA, dnsTimeOut, dnsRetries, dnsErrorLimit)
+		if(err != nil){
+			fmt.Printf("antiWild reported err: %v\n", err)
+		}
+
+		if(res.Status && res.Data.StatusCode != "NXDOMAIN"){
+			fmt.Printf("[%v] Wilcard Positive response. Canceling tasks.\n", domain)
+			wildcard = false
+		}else{
+			fmt.Printf("[%v] Wilcard Positive response OK. %v\n", domain, res.Data.StatusCode)
+			wildcard = true
+			break
+		}
+	}
+	
+	return wildcard
 }
