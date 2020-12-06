@@ -229,9 +229,9 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	
 	//testing if domain response to wil card. If this is the case, we cancel this task.
 	if(checkWildCard(domain, dnsTimeOut, dnsRetries, dnsErrorLimit)){
-		//if(verboseArg){
+		if(verboseArg){
 			fmt.Printf("[%v] dns wild card detected. Canceling this job!\n", domain)
-		//}
+		}
 		return
 	}
 	
@@ -319,7 +319,7 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 				return false
 			}	
 			
-			fmt.Printf("we have a valid CNAME value for %v!\n", domain)
+			//fmt.Printf("we have a valid CNAME value for %v!\n", domain)
 		}
 
 		if(qType == miekg.TypeA){
@@ -329,7 +329,7 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 				return false
 			}
 			
-			fmt.Printf("we have a valid A value for %v!\n", domain)
+			//fmt.Printf("we have a valid A value for %v!\n", domain)
 			
 		}		
 				
