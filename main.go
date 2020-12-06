@@ -227,6 +227,17 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		return
 	}		
 	
+
+	//testing if domain response to wil card. If this is the case, we cancel this task.
+	res, err:= resolver.GetDNSQueryResponse("supposedtonotexistmyfriend."+domain, miekg.TypeA, dnsTimeOut, dnsRetries, dnsErrorLimit)
+	if(err != nil){
+		fmt.Printf("antiWild reported err: %v\n", err)
+	}
+	if(res.Status){
+		fmt.Printf("[%v] Wilcard Positive response. Canceling tasks.", domain)
+		return
+	}
+
 	domParse, _:=tld.Parse(domain)
 	
 	var job jobL	
@@ -311,7 +322,7 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 				return false
 			}	
 			
-			//fmt.Printf("we have a valid CNAME value for %v!\n", domain)
+			fmt.Printf("we have a valid CNAME value for %v!\n", domain)
 		}
 
 		if(qType == miekg.TypeA){
@@ -321,7 +332,7 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 				return false
 			}
 			
-			//fmt.Printf("we have a valid A value for %v!\n", domain)
+			fmt.Printf("we have a valid A value for %v!\n", domain)
 			
 		}		
 				
