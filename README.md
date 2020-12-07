@@ -1,2 +1,132 @@
-# dmut
-A tool to perform permutations, mutations and alteration of subdomains in golang.
+## dmut
+
+### what?
+
+A tool written in golang to perform permutations, mutations and alteration of subdomains and brute force the result.
+
+
+### why?
+
+I'm doing some work on automatization for bug bounty, and I found myself needing something to brute force for new subdomains using these techniques.
+
+Doing some research I found altdns, a tool that does what I need but written in python.
+
+Speed is everything in bug bounty, usually, you have many subdomains to scan so I put myself in the task of writing a new tool that did the same as altdns but focused on speed and adding some improvements to the complete process.
+
+
+### type of permutations, mutations, alterations.
+
+The main subdomain is **a.b.com**
+from a word list, where you have for example the word **stage**, dmut will generate and try for a positive response:
+
+- stagea.b.com
+- astage.b.com
+- stage.a.b.com
+- a.stage.b.com
+- stage-a.b.com
+- a-stage.b.com
+
+
+### dns servers
+
+To make dmut work at his best, you need a DNS server list.
+
+I have written another tool to have my DNS server list clean and fast.
+
+You can take a look at [https://github.com/bp0lr/dnsfaster](dnsFaster) if you want to generate your own list.
+
+dmut come with a command to download from dnsFaster repository my last working list (this list is re-created daily) to work always with the best free dns servers available.
+
+just run
+```
+dmut --update-dnslist
+```
+and the new list would be saved to /~/.dmut/resolvers.txt
+
+
+### Speed
+
+dmut is significantly much faster than his python brother.
+
+I did some tests to compare using the same options. 
+
+```
+root@dnsMaster# time python3 altdns.py -i list.txt -o data_output -r -w words.txt -t 100 -f /root/.dmut/resolvers.txt -s results.txt
+...
+real    9m44.712s
+user    7m7.741s
+sys     1m6.288s
+
+root@dnsMaster# wc -l results.txt
+55
+```
+
+```
+root@dnsMaster# time cat list.txt | dmut -w 100 -d words.txt --dns-retries 3 -o results.txt -s /root/.dmut/resolvers.txt --dns-errorLimit 50 --dns-timeout 350 --show-stats
+...
+real    5m31.318s
+user    1m4.024s
+sys     0m41.876s
+
+root@dnsMaster# wc -l results.txt
+55
+```
+
+
+### Install
+
+Install is quick and clean
+```
+go get -u github.com/bp0lr/dmut
+```
+
+
+### examples
+```
+dmut -u "test.example.com" -d mutations.txt -w 100 --dns-timeout 300 --dns-retries 5 --dns-errorLimit 25 --show-stats -o results.txt
+```
+this will run dmut again test.example.com, using the word list mutations.txt, using 100 workers, having a DNS timeout of 300ms and 5 retries for each error.
+
+If a DNS server reaches 25 errors, this server is blacklisted and not used again.
+
+Show stats add some verbose to the process.
+
+If we found something would be saved to results.txt
+
+```
+cat subdomainList.txt | dmut -d mutations.txt -w 100 --dns-timeout 300 --dns-retries 5 --dns-errorLimit 25 --show-stats -o results.txt
+```
+the same but using a subdomain list.
+
+
+### options
+
+```
+Usage of dmut:
+  -d, --dictionary string    Dictionary file containing mutation list
+      --dns-errorLimit int   How many errors until we the DNS is disabled (default 25)
+      --dns-retries int      Max amount of retries for failed dns queries (default 3)
+      --dns-timeout int      Dns Server timeOut in millisecond (default 500)
+  -s, --dnsFile string       Use DNS servers from this file
+  -l, --dnsServers string    Use DNS servers from a list separated by ,
+  -o, --output string        Output file to save the results to
+      --show-ip              Display extra info for valid results
+      --show-stats           Display stats about the current job
+      --update-dnslist       Download a list of periodically validated public DNS resolvers
+  -u, --url string           Target URL
+  -v, --verbose              Add verboicity to the process
+  -w, --workers int          How many Workers amount (default 25)
+```
+
+
+### Contributing
+Everyone is encouraged to contribute to dmut by forking the Github repository and making a pull request or opening an issue.
+
+
+### AltDNS
+
+altdns was originaly created by **infosec-au** and can be found here https://github.com/infosec-au/altdns
+
+Looks like the project was abandoned at some point, so I had forked and did my own version with some improvements. https://github.com/bp0lr/altdns
+
+I want to thank **infosec-au** because his work was my inspiration for dmut.
