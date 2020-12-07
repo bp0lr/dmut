@@ -64,9 +64,9 @@ func main() {
 
 	var alterations []string
 
-	flag.IntVarP(&workersArg, "workers", "w", 25, "Workers amount")
+	flag.IntVarP(&workersArg, "workers", "w", 25, "Number of workers")
 	flag.StringVarP(&urlArg, "url", "u", "", "Target URL")
-	flag.BoolVarP(&verboseArg, "verbose", "v", false, "Display extra info about what is going on")
+	flag.BoolVarP(&verboseArg, "verbose", "v", false, "Add verboicity to the process")
 	flag.StringVarP(&mutationsDic, "dictionary", "d", "", "Dictionary file containing mutation list")
 	flag.StringVarP(&outputFileArg, "output", "o", "", "Output file to save the results to")
 	flag.StringVarP(&dnsFileArg, "dnsFile", "s", "", "Use DNS servers from this file")
@@ -76,7 +76,7 @@ func main() {
 	flag.BoolVar(&statsArg, "show-stats", false, "Display stats about the current job")
 	flag.IntVar(&dnsRetriesArg, "dns-retries", 3, "Amount of retries for failed dns queries")
 	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
-	flag.IntVar(&dnserrorLimitArg, "dns-errorLimit", 25, "How many errors until we disable a dns server")
+	flag.IntVar(&dnserrorLimitArg, "dns-errorLimit", 25, "How many errors until we the DNS is disabled")
 
 	flag.Parse()
 
