@@ -29,15 +29,16 @@ from a word list, where you have for example the word **stage**, dmut will gener
 
 ### dns servers
 
-To make dmut work at his best, you need a DNS server list.
+To get the best from **dmut**, you need a DNS server list.
 
-I have written another tool to have my DNS server list clean and fast.
 
-You can take a look at [https://github.com/bp0lr/dnsfaster](dnsFaster) if you want to generate your own list.
+Using one of my tools, [https://github.com/bp0lr/dnsfaster](dnsFaster), I have created a github action to run this tool again a public list generated from [https://public-dns.info/nameserver/us.txt].
 
-dmut come with a command to download from dnsFaster repository my last working list (this list is re-created daily) to work always with the best free dns servers available.
 
-just run
+this action runs one time a day and update the repo automatically.
+
+You can download this list from the repo (https://github.com/bp0lr/dmut-resolvers) or running **dmut** with the flag --update-dnslist to update your local copy.
+
 ```
 dmut --update-dnslist
 ```
@@ -46,9 +47,9 @@ and the new list would be saved to /~/.dmut/resolvers.txt
 
 ### Speed
 
-dmut is significantly much faster than his python brother.
+**dmut** is significantly much faster than his python brother.
 
-I did some tests to compare using the same options. 
+I did some tests to compare his speed using the same options. 
 
 ```
 root@dnsMaster# time python3 altdns.py -i list.txt -o data_output -r -w words.txt -t 100 -f /root/.dmut/resolvers.txt -s results.txt
@@ -85,7 +86,7 @@ go get -u github.com/bp0lr/dmut
 ```
 dmut -u "test.example.com" -d mutations.txt -w 100 --dns-timeout 300 --dns-retries 5 --dns-errorLimit 25 --show-stats -o results.txt
 ```
-this will run dmut again test.example.com, using the word list mutations.txt, using 100 workers, having a DNS timeout of 300ms and 5 retries for each error.
+this will run **dmut** again test.example.com, using the word list mutations.txt, using 100 workers, having a DNS timeout of 300ms and 5 retries for each error.
 
 If a DNS server reaches 25 errors, this server is blacklisted and not used again.
 
@@ -119,12 +120,12 @@ Usage of dmut:
 ```
 
 ### Wildcard filtering
-dmut will test each subdomain for wildcards, requesting a not supposed to exist subdomain.
+**dmut** will test each subdomain for wildcards, requesting a not supposed to exist subdomain.
 If we get a positive response the job will be ignored.
 
 
 ### Contributing
-Everyone is encouraged to contribute to dmut by forking the Github repository and making a pull request or opening an issue.
+Everyone is encouraged to contribute to **dmut** by forking the Github repository and making a pull request or opening an issue.
 
 
 ### AltDNS
