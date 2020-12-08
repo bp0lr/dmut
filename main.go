@@ -31,15 +31,15 @@ var (
 	dnsTimeOutArg		int
 	dnserrorLimitArg	int
 	mutationsDic		string
-	urlArg            	string
-	outputFileArg     	string
+	urlArg				string
+	outputFileArg		string
 	dnsFileArg			string
 	dnsArg				string
-	verboseArg        	bool
+	verboseArg			bool
 	updateDNSArg		bool
 	ipArg				bool
 	statsArg			bool
-	dnsServers 			[]string	
+	dnsServers			[]string	
 )
 
 //jobL desc
