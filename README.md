@@ -32,12 +32,12 @@ from a word list, where you have for example the word **stage**, dmut will gener
 To get the best from **dmut**, you need a DNS server list.
 
 
-Using one of my tools, [https://github.com/bp0lr/dnsfaster](dnsFaster), I have created a github action to run this tool again a public list generated from [https://public-dns.info/nameserver/us.txt].
+Using one of my tools, [dnsFaster](https://github.com/bp0lr/dnsfaster), I have created a github action to run this tool again a public list generated from (https://public-dns.info/nameserver/us.txt).
 
 
 this action runs one time a day and update the repo automatically.
 
-You can download this list from the repo (https://github.com/bp0lr/dmut-resolvers) or running **dmut** with the flag --update-dnslist to update your local copy.
+You can download this list from the repo [dmut-resolvers](https://github.com/bp0lr/dmut-resolvers) or running **dmut** with the flag --update-dnslist to update your local copy.
 
 ```
 dmut --update-dnslist
@@ -130,8 +130,8 @@ Everyone is encouraged to contribute to **dmut** by forking the Github repositor
 
 ### AltDNS
 
-altdns was originaly created by **infosec-au** and can be found here https://github.com/infosec-au/altdns
+altdns was originaly created by **infosec-au** and can be found here (https://github.com/infosec-au/altdns)
 
-Looks like the project was abandoned at some point, so I had forked and did my own version with some improvements. https://github.com/bp0lr/altdns
+Looks like the project was abandoned at some point, so I had forked and did my own version with some improvements. (https://github.com/bp0lr/altdns)
 
 I want to thank **infosec-au** because his work was my inspiration for dmut.
