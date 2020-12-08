@@ -118,6 +118,10 @@ Usage of dmut:
   -w, --workers int          How many Workers amount (default 25)
 ```
 
+### Wildcard filtering
+dmut will test each subdomain for wildcards, requesting a not supposed to exist subdomain.
+If we get a positive response the job will be ignored.
+
 
 ### Contributing
 Everyone is encouraged to contribute to dmut by forking the Github repository and making a pull request or opening an issue.
