@@ -148,7 +148,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 		}
 	}
 
-	//dnsdata.dedupe()
+	dnsdata.dedupe()
 	return &dnsdata, err
 }
 
@@ -250,23 +250,24 @@ func trimChars(s string) string {
 	return strings.TrimRight(s, ".")
 }
 
-func (r *DNSData) dedupe() {
+func (d *DNSData) dedupe() {
 	// dedupe all records
-	dedupeSlice(&r.Resolver, less(&r.Resolver))
-	dedupeSlice(&r.A, less(&r.A))
-	dedupeSlice(&r.AAAA, less(&r.AAAA))
-	dedupeSlice(&r.CNAME, less(&r.CNAME))
-	dedupeSlice(&r.MX, less(&r.MX))
-	dedupeSlice(&r.PTR, less(&r.PTR))
-	dedupeSlice(&r.SOA, less(&r.SOA))
-	dedupeSlice(&r.NS, less(&r.NS))
-	dedupeSlice(&r.TXT, less(&r.TXT))
+	dedupeSlice(&d.Resolver, less(&d.Resolver))
+	dedupeSlice(&d.A, less(&d.A))
+	dedupeSlice(&d.AAAA, less(&d.AAAA))
+	dedupeSlice(&d.CNAME, less(&d.CNAME))
+	dedupeSlice(&d.MX, less(&d.MX))
+	dedupeSlice(&d.PTR, less(&d.PTR))
+	dedupeSlice(&d.SOA, less(&d.SOA))
+	dedupeSlice(&d.NS, less(&d.NS))
+	dedupeSlice(&d.TXT, less(&d.TXT))
 }
 
-func (r *DNSData) Marshal() ([]byte, error) {
+//Marshal desc
+func (d *DNSData) Marshal() ([]byte, error) {
 	var b bytes.Buffer
 	enc := gob.NewEncoder(&b)
-	err := enc.Encode(r)
+	err := enc.Encode(d)
 	if err != nil {
 		return nil, err
 	}
@@ -274,9 +275,10 @@ func (r *DNSData) Marshal() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (r *DNSData) Unmarshal(b []byte) error {
+//Unmarshal desc
+func (d *DNSData) Unmarshal(b []byte) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(b))
-	err := dec.Decode(&r)
+	err := dec.Decode(&d)
 	if err != nil {
 		return err
 	}

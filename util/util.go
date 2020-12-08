@@ -69,7 +69,7 @@ func DownloadResolverList() (string, error){
 	}
 	defer out.Close()
 
-	resp, err := http.Get("https://raw.githubusercontent.com/janmasarik/resolvers/master/resolvers.txt")
+	resp, err := http.Get("https://raw.githubusercontent.com/bp0lr/dmut-resolvers/main/resolvers.txt")
 	if err != nil {
 		return "", err
 	}
