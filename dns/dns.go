@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"fmt"
+	//"fmt"
 
 	dnsManager	"github.com/bp0lr/dmut/dnsManager"
 
