@@ -69,7 +69,11 @@ func DownloadFile(url string, saveName string) (string, error){
 	}
 	defer out.Close()
 
+<<<<<<< Updated upstream
 	resp, err := http.Get(url)
+=======
+	resp, err := http.Get("https://raw.githubusercontent.com/bp0lr/dmut-resolvers/main/resolvers.txt")
+>>>>>>> Stashed changes
 	if err != nil {
 		return "", err
 	}
