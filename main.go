@@ -258,7 +258,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		go func() {
 			for task := range jobs {				
 				fullDomain:= task + "." + job.sld + "." + job.tld + "."
-				processDNS(&wg, fullDomain, outputFile, dnsTimeOut, dnsRetries, dnsErrorLimit)
+				processDNS(fullDomain, outputFile, dnsTimeOut, dnsRetries, dnsErrorLimit)
 			}
 			wg.Done()
 		}()
@@ -272,7 +272,7 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 	wg.Wait()	
 }
 
-func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeOut int, dnsRetries int, dnsErrorLimit int) {
+func processDNS(domain string, outputFile *os.File, dnsTimeOut int, dnsRetries int, dnsErrorLimit int) {
 
 	if verboseArg {
 		fmt.Printf("[+] Testing: %v\n", domain)

@@ -129,7 +129,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16, customDNSServ
 			}
 
 			if resp != nil && resp.Truncated {
-				fmt.Printf("[truncate | %v]: %v\n", dnsServer, msg.Question[0].String())
+				//fmt.Printf("[truncate | %v]: %v\n", dnsServer, msg.Question[0].String())
 				
 				//We have a truncated response, lets retry the query using TCP
 				cliTCP := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
