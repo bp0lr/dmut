@@ -347,13 +347,13 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 		if(retest.Status){
 			if(retest.Data.StatusCode != "NOERROR"){
 
-				fmt.Printf("[%v] ban by goole retest  %v <> %v\n", domain, result.Data.StatusCode, retest.Data.StatusCode)
+				//fmt.Printf("[%v] ban by goole retest  %v <> %v\n", domain, result.Data.StatusCode, retest.Data.StatusCode)
 				//fmt.Printf("The domain %v was reported like OK, but can't pass the retest again google.\n", domain)
 				//fmt.Printf("Verboise: %v\n", retest.Data.StatusCode)
 				return false
 			}
 			
-			fmt.Printf("[%v] confirm by goole retest  %v <> %v\n", domain, result.Data.StatusCode, retest.Data.StatusCode)
+			//fmt.Printf("[%v] confirm by goole retest  %v <> %v\n", domain, result.Data.StatusCode, retest.Data.StatusCode)
 			//fmt.Printf("domain %v pass the re test!\n", domain)				
 			//fmt.Printf("Verboise: %v\n", retest.Data.StatusCode)
 			//fmt.Printf("Verboise: %v\n", retest.Data.OriRes)		
