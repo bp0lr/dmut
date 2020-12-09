@@ -37,6 +37,7 @@ accept
 accounts
 infra
 d
+adm
 admin
 admin1
 administrator
@@ -48,6 +49,7 @@ america
 analytics
 api
 api1
+apis
 api-docs
 apollo
 april
@@ -59,8 +61,6 @@ billing
 boards
 box
 brand
-brasil
-brazil
 bucket
 bucky
 c
@@ -75,6 +75,7 @@ cms1
 cn
 com
 config
+conf
 confluence
 container
 control
@@ -114,6 +115,7 @@ drop
 elasticbeanstalk
 elb
 email
+mail
 eng
 engima
 engine
@@ -121,10 +123,8 @@ plugins
 engineering
 eu
 europe
-europewest
 euw
 euwe
-evelynn
 events
 feb
 fet
@@ -134,11 +134,11 @@ forum
 frontpage
 fw
 games
-germany
 gh
 ghcpi
 git
 github
+gitlab
 global
 hkg
 hw
@@ -151,13 +151,8 @@ jenkins
 jinx
 july
 june
-kor
-korea
-kr
 lan
 las
-latin
-latinamerica
 lax
 lax1
 lb
@@ -171,13 +166,11 @@ mirror
 na
 nautilus
 net
-netherlands
 nginx
+apache
 nl
 node
-northamerica
 nov
-oceania
 oct
 ops
 org
@@ -190,7 +183,6 @@ payment
 pc
 php
 pl
-poland
 preferences
 priv
 private
@@ -200,8 +192,10 @@ promo
 promotion
 proxy
 redirector
+redir
 region
 repository
+repo
 reset
 restrict
 restricted
@@ -244,9 +238,6 @@ tomcat
 tpe
 tr
 trial
-tur
-turk
-turkey
 twitch
 uat
 v1
@@ -258,5 +249,4 @@ web
 web1
 webapp
 app
-westeurope
 z
