@@ -26,20 +26,20 @@ import (
 )
 
 var (
-	workersArg	      	int
-	dnsRetriesArg		int
-	dnsTimeOutArg		int
-	dnserrorLimitArg	int
-	mutationsDic		string
-	urlArg				string
-	outputFileArg		string
-	dnsFileArg			string
-	dnsArg				string
-	verboseArg			bool
-	updateDNSArg		bool
-	ipArg				bool
-	statsArg			bool
-	dnsServers			[]string	
+		workersArg			int
+		dnsRetriesArg		int
+		dnsTimeOutArg		int
+		dnserrorLimitArg	int
+		mutationsDic		string
+		urlArg				string
+		outputFileArg		string
+		dnsFileArg			string
+		dnsArg				string
+		verboseArg			bool
+		updateDNSArg		bool
+		ipArg				bool
+		statsArg			bool
+		dnsServers			[]string	
 )
 
 //jobL desc

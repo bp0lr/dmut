@@ -1,4 +1,4 @@
-package retryablednstest
+package retryabledns
 
 import (
 	"bytes"
