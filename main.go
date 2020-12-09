@@ -313,24 +313,24 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 
 		if(qType == miekg.TypeCNAME){
 			if(len(result.Data.CNAME) < 1){
-				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
-				fmt.Printf("raw: %v\n", result.Data.Raw)
+				//fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
+				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}	
 			
-			fmt.Printf("[%v] reported a valid CNAME value for %v size: %v!\n", result.Data.Resolver, domain, len(result.Data.CNAME))
-			fmt.Printf("debug: %v\n", result.Data.CNAME)
+			//fmt.Printf("[%v] reported a valid CNAME value for %v size: %v!\n", result.Data.Resolver, domain, len(result.Data.CNAME))
+			//fmt.Printf("debug: %v\n", result.Data.CNAME)
 		}
 
 		if(qType == miekg.TypeA){
 			if(len(result.Data.A) < 1){
-				fmt.Printf("A NOERROR was reported for domain %v but A was empty.\n", domain)
+				//fmt.Printf("A NOERROR was reported for domain %v but A was empty.\n", domain)
 				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}
 			
-			fmt.Printf("[%v] reported a valid A value for %v size: %v!\n", result.Data.Resolver, domain, len(result.Data.A))
-			fmt.Printf("debug: %v\n", result.Data.A)
+			//fmt.Printf("[%v] reported a valid A value for %v size: %v!\n", result.Data.Resolver, domain, len(result.Data.A))
+			//fmt.Printf("debug: %v\n", result.Data.A)
 			
 		}
 				
@@ -342,13 +342,16 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 
 		if(retest.Status){
 			if(retest.Data.StatusCode != "NOERROR"){
-				fmt.Printf("The domain %v was reported like OK, but can't pass the retest again google.\n", domain)
-				fmt.Printf("Verboise: %v\n", retest.Data.StatusCode)
+
+				fmt.Printf("[%v] ban by goole retest  %v <> %v\n", domain, result.Data.StatusCode, retest.Data.StatusCode)
+				//fmt.Printf("The domain %v was reported like OK, but can't pass the retest again google.\n", domain)
+				//fmt.Printf("Verboise: %v\n", retest.Data.StatusCode)
 				return false
 			}
-				
-			fmt.Printf("domain %v pass the re test!\n", domain)				
-			fmt.Printf("Verboise: %v\n", retest.Data.StatusCode)
+			
+			fmt.Printf("[%v] confirm by goole retest  %v <> %v\n", domain, result.Data.StatusCode, retest.Data.StatusCode)
+			//fmt.Printf("domain %v pass the re test!\n", domain)				
+			//fmt.Printf("Verboise: %v\n", retest.Data.StatusCode)
 			//fmt.Printf("Verboise: %v\n", retest.Data.OriRes)		
 		}else{			
 			return false
