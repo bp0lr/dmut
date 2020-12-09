@@ -106,6 +106,10 @@ Install is quick and clean
 go get -u github.com/bp0lr/dmut
 ```
 
+You need a mutations list to make dmut works.
+
+You can use my list downloading the file from [here](https://raw.githubusercontent.com/bp0lr/dmut/main/words.txt)
+
 
 ### examples
 ```
