@@ -284,8 +284,10 @@ func processDNS(domain string, outputFile *os.File, dnsTimeOut int, dnsRetries i
 		
 		//fmt.Printf("[%v] send type %v\n", domain, value)
 		resp, err := resolver.GetDNSQueryResponse(domain, value, dnsTimeOut, dnsRetries, dnsErrorLimit, "")
-		if(err != nil){
+		if(verboseArg){
+			if(err != nil){
 			fmt.Printf("err resolver: %v\n", err)
+			}
 		}
 
 		if(!resp.Status){
@@ -336,8 +338,10 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 				
 		//re validated what we found again google dns just to be sure.
 		retest, reErr := resolver.GetDNSQueryResponse(domain, qType, 500, 3, 10, "8.8.8.8:53")
-		if(reErr != nil){
-			fmt.Printf("err resolver: %v\n", reErr)
+		if(verboseArg){
+			if(reErr != nil){
+			//fmt.Printf("err resolver: %v\n", reErr)
+			}
 		}
 
 		if(retest.Status){
@@ -356,9 +360,7 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 		}else{			
 			return false
 		}
-		
-
-				
+						
 		GlobalStats.founds = GlobalStats.founds + 1
 
 		if outputFileArg != "" {

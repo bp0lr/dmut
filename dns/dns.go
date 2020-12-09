@@ -152,7 +152,7 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16, customDNSServ
 			dnsdata.StatusCode = dns.RcodeToString[resp.Rcode]
 			
 			if(dnsdata.StatusCode != "NXDOMAIN"){
-				fmt.Printf("[%v] : %v\n", host, dnsdata.StatusCode)
+				//fmt.Printf("[%v] : %v\n", host, dnsdata.StatusCode)
 			}
 			
 			dnsdata.Resolver = append(dnsdata.Resolver, dnsServer)
