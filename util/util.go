@@ -51,8 +51,8 @@ func TrimChars(s string) string {
 	return strings.TrimRight(s, ".")
 }
 
-//DownloadResolverList func
-func DownloadResolverList() (string, error){
+//DownloadFile func
+func DownloadFile(url string, saveName string) (string, error){
 	
 	dir,err := GetDir()
 	if(err != nil){
@@ -60,7 +60,7 @@ func DownloadResolverList() (string, error){
 	}
 	os.MkdirAll(dir, 0644)
 
-	fullPath := filepath.Join(dir, "resolvers.txt")
+	fullPath := filepath.Join(dir, saveName)
 
 	os.Remove(fullPath)
 	out, err := os.Create(fullPath)
@@ -69,7 +69,7 @@ func DownloadResolverList() (string, error){
 	}
 	defer out.Close()
 
-	resp, err := http.Get("https://raw.githubusercontent.com/bp0lr/dmut-resolvers/main/resolvers.txt")
+	resp, err := http.Get(url)
 	if err != nil {
 		return "", err
 	}

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	//"fmt"
+	"fmt"
 
 	dnsManager	"github.com/bp0lr/dmut/dnsManager"
 
@@ -41,7 +41,7 @@ func New(dnsTimeOut int, maxRetries int, errorLimit int) *Client {
 // Resolve is the underlying resolve function that actually resolves a host
 // and gets the ip records for that host.
 func (c *Client) Resolve(host string) (*DNSData, error) {
-	return c.Query(host, dns.TypeA)
+	return c.Query(host, dns.TypeA, "")
 }
 
 // Do sends a provided dns request and return the raw native response
@@ -67,12 +67,12 @@ func (c *Client) Do(msg *dns.Msg) (resp *dns.Msg, err error) {
 }
 
 // Query sends a provided dns request and return enriched response
-func (c *Client) Query(host string, requestType uint16) (*DNSData, error) {
-	return c.QueryMultiple(host, []uint16{requestType})
+func (c *Client) Query(host string, requestType uint16, customDNSServer string) (*DNSData, error) {
+	return c.QueryMultiple(host, []uint16{requestType}, customDNSServer)
 }
 
 // QueryMultiple sends a provided dns request and return the data
-func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, error) {
+func (c *Client) QueryMultiple(host string, requestTypes []uint16, customDNSServer string) (*DNSData, error) {
 	
 	var (
 		dnsdata 	DNSData
@@ -109,37 +109,53 @@ func (c *Client) QueryMultiple(host string, requestTypes []uint16) (*DNSData, er
 		
 		msg.Question[0] = question
 		
+		var dnsServer string
 		for i := 0; i < c.maxRetries; i++ {			
-			val:=dnsManager.ReturnRandomDNSServerEntry();
-			resolver := val.Host
+			
+			if(len(customDNSServer) == 0){
+				val:=dnsManager.ReturnRandomDNSServerEntry();						
+				dnsServer = val.Host
+			}else{
+				dnsServer = customDNSServer
+			}
 			
 			var resp *dns.Msg
-			resp, _, err = cliUDP.Exchange(&msg, resolver)
+			resp, _, err = cliUDP.Exchange(&msg, dnsServer)
 			
 			if err != nil {
-				dnsManager.ReportDNSError(val.Host, c.errorLimit)
+				dnsManager.ReportDNSError(dnsServer, c.errorLimit)
 				//fmt.Printf("err: %v\n", err)
 				continue;
 			}
 
 			if resp != nil && resp.Truncated {
-				//fmt.Printf("[truncate]: %v\n", msg.Question[0].String())
+				fmt.Printf("[truncate]: %v\n", msg.Question[0].String())
 				
 				//We have a truncated response, lets retry the query using TCP
 				cliTCP := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
-				resp, _, err = cliTCP.Exchange(&msg, resolver)
+				resp, _, err = cliTCP.Exchange(&msg, dnsServer)
 			}
 
-			if err != nil {
-				dnsManager.ReportDNSError(val.Host, c.errorLimit)
+			if err != nil && len(customDNSServer) == 0 {
+				dnsManager.ReportDNSError(dnsServer, c.errorLimit)
 				//fmt.Printf("err: %v\n", err)
+				continue;
+			}
+
+			if(dns.RcodeToString[resp.Rcode] == "SERVFAIL"){
+				dnsManager.ReportDNSError(dnsServer, c.errorLimit)
 				continue;
 			}
 
 			dnsdata.Host = host
 			dnsdata.Raw += resp.String()
 			dnsdata.StatusCode = dns.RcodeToString[resp.Rcode]
-			dnsdata.Resolver = append(dnsdata.Resolver, resolver)
+			
+			if(dnsdata.StatusCode != "NXDOMAIN"){
+				fmt.Printf("[%v] : %v\n", host, dnsdata.StatusCode)
+			}
+			
+			dnsdata.Resolver = append(dnsdata.Resolver, dnsServer)
 			dnsdata.OriReq = msg.String()
 			dnsdata.OriRes = resp.String()
 

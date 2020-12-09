@@ -81,7 +81,7 @@ func main() {
 	flag.Parse()
 
 	if(updateDNSArg){
-		file, err:=util.DownloadResolverList()
+		file, err:=util.DownloadFile("https://raw.githubusercontent.com/bp0lr/dmut-resolvers/main/resolvers.txt", "resolvers.txt")
 		if(err != nil){
 			fmt.Printf("[-] Error: %v\n", err)
 		}else{
@@ -283,7 +283,7 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 	for _, value := range qtype{		
 		
 		//fmt.Printf("[%v] send type %v\n", domain, value)
-		resp, err := resolver.GetDNSQueryResponse(domain, value, dnsTimeOut, dnsRetries, dnsErrorLimit)
+		resp, err := resolver.GetDNSQueryResponse(domain, value, dnsTimeOut, dnsRetries, dnsErrorLimit, "")
 		if(err != nil){
 			fmt.Printf("err resolver: %v\n", err)
 		}
@@ -294,7 +294,6 @@ func processDNS(wg *sync.WaitGroup, domain string, outputFile *os.File, dnsTimeO
 
 		found:=processResponse(domain, resp, outputFile, value)
 		if(found){
-			//fmt.Printf("encontre %v, rompo!\n", domain)
 			break
 		}
 	}	
@@ -314,24 +313,48 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 
 		if(qType == miekg.TypeCNAME){
 			if(len(result.Data.CNAME) < 1){
-				//fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
-				//fmt.Printf("raw: %v\n", result.Data.Raw)
+				fmt.Printf("A NOERROR was reported for domain %v but CNAME was empty.\n", domain)
+				fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}	
 			
-			//fmt.Printf("we have a valid CNAME value for %v!\n", domain)
+			fmt.Printf("[%v] reported a valid CNAME value for %v size: %v!\n", result.Data.Resolver, domain, len(result.Data.CNAME))
+			fmt.Printf("debug: %v\n", result.Data.CNAME)
 		}
 
 		if(qType == miekg.TypeA){
 			if(len(result.Data.A) < 1){
-				//fmt.Printf("A NOERROR was reported for domain %v but A was empty.\n", domain)
+				fmt.Printf("A NOERROR was reported for domain %v but A was empty.\n", domain)
 				//fmt.Printf("raw: %v\n", result.Data.Raw)
 				return false
 			}
 			
-			//fmt.Printf("we have a valid A value for %v!\n", domain)
+			fmt.Printf("[%v] reported a valid A value for %v size: %v!\n", result.Data.Resolver, domain, len(result.Data.A))
+			fmt.Printf("debug: %v\n", result.Data.A)
 			
-		}		
+		}
+				
+		//re validated what we found again google dns just to be sure.
+		retest, reErr := resolver.GetDNSQueryResponse(domain, qType, 500, 3, 10, "8.8.8.8:53")
+		if(reErr != nil){
+			fmt.Printf("err resolver: %v\n", reErr)
+		}
+
+		if(retest.Status){
+			if(retest.Data.StatusCode != "NOERROR"){
+				fmt.Printf("The domain %v was reported like OK, but can't pass the retest again google.\n", domain)
+				fmt.Printf("Verboise: %v\n", retest.Data.StatusCode)
+				return false
+			}
+				
+			fmt.Printf("domain %v pass the re test!\n", domain)				
+			fmt.Printf("Verboise: %v\n", retest.Data.StatusCode)
+			//fmt.Printf("Verboise: %v\n", retest.Data.OriRes)		
+		}else{			
+			return false
+		}
+		
+
 				
 		GlobalStats.founds = GlobalStats.founds + 1
 
@@ -364,7 +387,7 @@ func checkWildCard(domain string, dnsTimeOut int, dnsRetries int, dnsErrorLimit 
 
 	for _, v := range domains{
 		//fmt.Printf("[%v] trying %v\n", domain, v)
-		res, err = resolver.GetDNSQueryResponse(v, miekg.TypeA, dnsTimeOut, dnsRetries, dnsErrorLimit)
+		res, err = resolver.GetDNSQueryResponse(v, miekg.TypeA, dnsTimeOut, dnsRetries, dnsErrorLimit, "8.8.8.8:53")
 		if(err != nil){
 			//fmt.Printf("antiWild reported err: %v\n", err)
 			continue

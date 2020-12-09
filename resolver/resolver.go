@@ -12,12 +12,12 @@ type JobResponse struct {
 }
 
 //GetDNSQueryResponse desc
-func GetDNSQueryResponse(fqdn string, qType uint16, dnsTimeOut int, retries int, errorLimit int) (JobResponse, error) {
+func GetDNSQueryResponse(fqdn string, qType uint16, dnsTimeOut int, retries int, errorLimit int, customDNSServer string) (JobResponse, error) {
 	var res JobResponse
 	res.Domain = fqdn
 
 	dnsClient := dns.New(dnsTimeOut, retries, errorLimit)
-	resp, err := dnsClient.Query(fqdn, qType)
+	resp, err := dnsClient.Query(fqdn, qType, customDNSServer)
 	if err == nil {
 			res.Status = true
 			res.Data = *resp
