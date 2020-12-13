@@ -26,20 +26,21 @@ import (
 )
 
 var (
-		workersArg			int
-		dnsRetriesArg		int
-		dnsTimeOutArg		int
-		dnserrorLimitArg	int
-		mutationsDic		string
-		urlArg				string
-		outputFileArg		string
-		dnsFileArg			string
-		dnsArg				string
-		verboseArg			bool
-		updateDNSArg		bool
-		ipArg				bool
-		statsArg			bool
-		dnsServers			[]string	
+		workersArg				int
+		dnsRetriesArg			int
+		dnsTimeOutArg			int
+		dnserrorLimitArg		int
+		mutationsDic			string
+		urlArg					string
+		outputFileArg			string
+		dnsFileArg				string
+		dnsArg					string
+		verboseArg				bool
+		updateDNSArg			bool
+		updateNeededFIlesArg	bool
+		ipArg					bool
+		statsArg				bool
+		dnsServers				[]string
 )
 
 //jobL desc
@@ -78,17 +79,35 @@ func main() {
 	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
 	flag.IntVar(&dnserrorLimitArg, "dns-errorLimit", 25, "How many errors until we the DNS is disabled")
 
+	flag.BoolVar(&updateNeededFIlesArg, "update-files", false, "Download all the default files to work with dmut. (default mutation list, resolvers, etc)")
+
 	flag.Parse()
 
-	if(updateDNSArg){
-		file, err:=util.DownloadFile("https://raw.githubusercontent.com/bp0lr/dmut-resolvers/main/resolvers.txt", "resolvers.txt")
-		if(err != nil){
-			fmt.Printf("[-] Error: %v\n", err)
+	if(updateDNSArg || updateNeededFIlesArg){
+		dnsListTxt, errDNSListTxt:=util.DownloadFile("https://raw.githubusercontent.com/bp0lr/dmut-resolvers/main/resolvers.txt", "resolvers.txt")
+		if(errDNSListTxt != nil){
+			fmt.Printf("[-] Error: %v\n", errDNSListTxt)
 		}else{
-			fmt.Printf("[+] File downloaded successfully!\n")
-			fmt.Printf("[+] Location: %v\n", file)
+			fmt.Printf("[+] Location: %v\n", dnsListTxt)
 		}
+
+		dnsListTopTxt, errDNSListTopTxt:=util.DownloadFile("https://raw.githubusercontent.com/bp0lr/dmut-resolvers/main/top20.txt", "top20.txt")
+		if(errDNSListTopTxt != nil){
+			fmt.Printf("[-] Error: %v\n", errDNSListTopTxt)
+		}else{
+			fmt.Printf("[+] Location: %v\n", dnsListTopTxt)
+		}
+
+		mutationListTxt, errMutationTxt:=util.DownloadFile("https://raw.githubusercontent.com/bp0lr/dmut/main/words.txt", "words.txt")
+		if(errMutationTxt != nil){
+			fmt.Printf("[-] Error: %v\n", errMutationTxt)
+		}else{
+			fmt.Printf("[+] Location: %v\n", mutationListTxt)
+		}
+		
+		fmt.Print("[+] download finished\n")
 		return
+
 	}
 
 	//concurrency
