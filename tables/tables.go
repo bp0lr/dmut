@@ -13,9 +13,9 @@ func GenerateTables(trd string, alterations []string) []string{
 
 	var res []string
 	
-	addToDomain(trd, alterations, &res)
-	addNumbers(trd, &res)
-	addSeparator(trd, alterations, &res)
+	AddToDomain(trd, alterations, &res)
+	AddNumbers(trd, &res)
+	AddSeparator(trd, alterations, &res)
 	
 	//removing duplicated from job.tasks
 	res = util.RemoveDuplicatesSlice(res)
@@ -23,7 +23,8 @@ func GenerateTables(trd string, alterations []string) []string{
 	return res
 }
 
-func addToDomain(trd string, alterations []string, res *[]string){
+//AddToDomain desc
+func AddToDomain(trd string, alterations []string, res *[]string){
 
 	//	this will add each alteration to the existing domain.
 	//	for example to test some.test.com we are going to generate alt1.some.test.com and some.alt1.test.com
@@ -43,7 +44,8 @@ func addToDomain(trd string, alterations []string, res *[]string){
 	}
 }	
 
-func addNumbers(trd string, res *[]string){
+//AddNumbers desc
+func AddNumbers(trd string, res *[]string){
 
 	//	this will add a number to the end of each subdmain part.
 	//	for example to test some.test.com we are going to generate some1.some.test.com, some2.alt1.test.com, etc
@@ -63,7 +65,8 @@ func addNumbers(trd string, res *[]string){
 	}
 }	
 
-func addSeparator(trd string, alterations []string, res *[]string){
+//AddSeparator desc
+func AddSeparator(trd string, alterations []string, res *[]string){
 
 	//	this will add (clean and using a -) each alteration to each subdomain part.
 	//	for example to test some.test.com we are going to generate some-alt1.test.com, alt1-some.test.com, etc
