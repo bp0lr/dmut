@@ -23,6 +23,8 @@ import (
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
 	
 	miekg		"github.com/miekg/dns"
+
+	pb			"github.com/cheggaaa/pb/v3"
 )
 
 var (
@@ -40,6 +42,7 @@ var (
 		updateNeededFIlesArg	bool
 		ipArg					bool
 		statsArg				bool
+		pbArg					bool
 		dnsServers				[]string
 )
 
@@ -57,6 +60,7 @@ type stats struct{
 	domains int
 	mutations int
 	founds	int
+	fundDomains []string
 }
 
 //GlobalStats desc
@@ -79,6 +83,7 @@ func main() {
 	flag.IntVar(&dnsRetriesArg, "dns-retries", 3, "Amount of retries for failed dns queries")
 	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
 	flag.IntVar(&dnserrorLimitArg, "dns-errorLimit", 25, "How many errors until we the DNS is disabled")
+	flag.BoolVar(&pbArg, "use-pb", false, "use a progress bar")
 
 	flag.BoolVar(&updateNeededFIlesArg, "update-files", false, "Download all the default files to work with dmut. (default mutation list, resolvers, etc)")
 
@@ -132,10 +137,10 @@ func main() {
 		if _, err := os.Stat(dnsFileArg); os.IsNotExist(err) {
 			fmt.Printf("Error, %v\n", err)
 			return
-		  }else{
-			content, _ := ioutil.ReadFile(dnsFileArg)
-			dnsServers = strings.Split(string(content), "\n")
 		  }
+		
+		content, _ := ioutil.ReadFile(dnsFileArg)
+		dnsServers = strings.Split(string(content), "\n")		  
 	}
 
 	if(len(dnsArg) > 0){
@@ -179,10 +184,10 @@ func main() {
 		if _, err := os.Stat(mutationsDic); os.IsNotExist(err) {
 			fmt.Printf("Error, %v\n", err)
 			return
-		}else{
-			mutations, _ := ioutil.ReadFile(mutationsDic)
-			alterations = strings.Split(string(mutations), "\n")
 		}
+		
+		mutations, _ := ioutil.ReadFile(mutationsDic)
+		alterations = strings.Split(string(mutations), "\n")		
 	}
 
 	GlobalStats.mutations = len(alterations)
@@ -211,9 +216,28 @@ func main() {
 	}
 
 	GlobalStats.domains = len(jobs)
-
+	
+	var bar *pb.ProgressBar
+	if(pbArg){
+		tmpl := `{{ red "Domains:" }} {{counters . | red}}  {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}}`
+		bar = pb.ProgressBarTemplate(tmpl).Start(len(jobs))
+		bar.SetWidth(50)
+	}
 	for _, value := range jobs {
+		if(pbArg){
+			bar.Increment()
+		}
 		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg, dnsRetriesArg, dnserrorLimitArg)
+	}
+	if(pbArg){
+		bar.Finish()
+	}
+
+	if(len(GlobalStats.fundDomains) > 0 && pbArg){
+		fmt.Println("")
+		for _,v:=range GlobalStats.fundDomains{
+			fmt.Println(v)
+		}
 	}
 
 	//if we didn't found anything, delete the result file.
@@ -392,10 +416,14 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 				outputFile.WriteString(trimDomain + "\n")
 			}
 		}	
-		if(ipArg){
-			fmt.Printf("%v : [%v]:[%v]\n", trimDomain, util.TrimChars(strings.Join(result.Data.CNAME,",")) , util.TrimChars(strings.Join(result.Data.A,",")))
-		}else{
-			fmt.Printf("%v\n", trimDomain)
+		if(!pbArg){
+			if(ipArg){
+				fmt.Printf("%v : [%v]:[%v]\n", trimDomain, util.TrimChars(strings.Join(result.Data.CNAME,",")) , util.TrimChars(strings.Join(result.Data.A,",")))
+			}else{
+				fmt.Printf("%v\n", trimDomain)
+			}
+		}else{ 
+			GlobalStats.fundDomains=append(GlobalStats.fundDomains, trimDomain)
 		}
 
 		return true
