@@ -4,6 +4,7 @@
 
 A tool written in golang to perform permutations, mutations and alteration of subdomains and brute force the result.
 
+![https://asciinema.org/a/xNDmWT0xkVyuR3vwl99kqy9RB](https://asciinema.org/a/xNDmWT0xkVyuR3vwl99kqy9RB.png)
 
 ### why?
 
@@ -149,6 +150,7 @@ Usage of dmut:
 
 ### Wildcard filtering
 **dmut** will test each subdomain for wildcards, requesting a not supposed to exist subdomain.
+
 If we get a positive response the job will be ignored.
 
 
