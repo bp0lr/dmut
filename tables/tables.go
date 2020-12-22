@@ -1,21 +1,25 @@
 package tables
 
 import (
-	
+	//"os"
+	//"fmt"	
 	"strings"
 	"strconv"
-		
-	util "github.com/bp0lr/dmut/util"
+	
+	def 	"github.com/bp0lr/dmut/defines"
+	util 	"github.com/bp0lr/dmut/util"
 )
 
+type dmutJob = def.DmutJob
+
 //GenerateTables desc
-func GenerateTables(trd string, alterations []string) []string{
+func GenerateTables(job def.DmutJob, alterations []string) []string{
 
 	var res []string
 	
-	AddToDomain(trd, alterations, &res)
-	AddNumbers(trd, &res)
-	AddSeparator(trd, alterations, &res)
+	AddToDomain(job, alterations, &res)
+	AddNumbers(job, &res)
+	AddSeparator(job, alterations, &res)
 	
 	//removing duplicated from job.tasks
 	res = util.RemoveDuplicatesSlice(res)
@@ -24,7 +28,7 @@ func GenerateTables(trd string, alterations []string) []string{
 }
 
 //AddToDomain desc
-func AddToDomain(trd string, alterations []string, res *[]string){
+func AddToDomain(job dmutJob, alterations []string, res *[]string){
 
 	//	this will add each alteration to the existing domain.
 	//	for example to test some.test.com we are going to generate alt1.some.test.com and some.alt1.test.com
@@ -34,39 +38,43 @@ func AddToDomain(trd string, alterations []string, res *[]string){
 		if(len(alt) < 1){
 			continue
 		}
-
-		strSplit := strings.Split(trd, ".")
+		
+		strSplit := strings.Split(job.Trd, ".")
 
 		for i := 0; i <= len(strSplit); i++ {
 			val:=util.Insert(strSplit, i, alt)
-			*res = append(*res, strings.Join(val, "."))
+			fullDomain:= strings.Join(val, ".") + "." + job.Sld + "." + job.Tld
+			//fmt.Printf("val: %v\n", fullDomain)
+			*res = append(*res, fullDomain)
 		}
 	}
 }	
 
 //AddNumbers desc
-func AddNumbers(trd string, res *[]string){
+func AddNumbers(job def.DmutJob, res *[]string){
 
 	//	this will add a number to the end of each subdmain part.
 	//	for example to test some.test.com we are going to generate some1.some.test.com, some2.alt1.test.com, etc
 	///////////////////////////////////////////////////////////////////////////////////////////////		
 	for index := 0; index < 10; index++ {		
-		strSplit := strings.Split(trd, ".")
+		strSplit := strings.Split(job.Trd, ".")
 
-		for i := 0; i < len(strSplit); i++ {
-			
+		var fullDomain string			
+		for i := 0; i < len(strSplit); i++ {			
 			strclean:=strSplit[i]
 			strSplit[i] = strclean+"-"+strconv.Itoa(index)
-			*res = append(*res, strings.Join(strSplit, "."))
+			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
 			
 			strSplit[i] = strclean+strconv.Itoa(index)
-			*res = append(*res, strings.Join(strSplit, "."))
+			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
 		}
 	}
 }	
 
 //AddSeparator desc
-func AddSeparator(trd string, alterations []string, res *[]string){
+func AddSeparator(job def.DmutJob, alterations []string, res *[]string){
 
 	//	this will add (clean and using a -) each alteration to each subdomain part.
 	//	for example to test some.test.com we are going to generate some-alt1.test.com, alt1-some.test.com, etc
@@ -76,22 +84,28 @@ func AddSeparator(trd string, alterations []string, res *[]string){
 			continue
 		}
 
-		strSplit := strings.Split(trd, ".")
+		var fullDomain string
+
+		strSplit := strings.Split(job.Trd, ".")				
 
 		for i := 0; i < len(strSplit); i++ {			
 			strclean:=strSplit[i]
-
+			
 			strSplit[i] = strclean+"-"+alt
-			*res = append(*res, strings.Join(strSplit, "."))
+			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
 
 			strSplit[i] = alt+"-"+strclean
-			*res = append(*res, strings.Join(strSplit, "."))
+			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
 
 			strSplit[i] = strclean+alt
-			*res = append(*res, strings.Join(strSplit, "."))
+			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
 
 			strSplit[i] = alt+strclean
-			*res = append(*res, strings.Join(strSplit, "."))
+			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
 		}
-	}
+	}	
 }

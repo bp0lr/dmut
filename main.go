@@ -18,6 +18,7 @@ import (
 	util		"github.com/bp0lr/dmut/util"
 	tables		"github.com/bp0lr/dmut/tables"
 	resolver	"github.com/bp0lr/dmut/resolver"
+	def			"github.com/bp0lr/dmut/defines"
 	
 	flag 		"github.com/spf13/pflag"
 	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
@@ -46,25 +47,14 @@ var (
 		dnsServers				[]string
 )
 
-//jobL desc
-type jobL struct {
-	domain		string
-	tld        	string
-	sld  		string
-	trd  		string
-	tasks		[]string
-}
-
-type stats struct{
-	queries	int
-	domains int
-	mutations int
-	founds	int
-	fundDomains []string
-}
 
 //GlobalStats desc
-var GlobalStats stats
+var GlobalStats def.Stats
+
+//GlobalLoadStats desc
+var GlobalLoadStats def.LoadStats
+
+var bar *pb.ProgressBar
 
 func main() {
 
@@ -190,7 +180,7 @@ func main() {
 		alterations = strings.Split(string(mutations), "\n")		
 	}
 
-	GlobalStats.mutations = len(alterations)
+	GlobalStats.Mutations = len(alterations)
 
 	var outputFile *os.File
 	var err0 error
@@ -215,27 +205,84 @@ func main() {
 		jobs = append(jobs, urlArg)
 	}
 
-	GlobalStats.domains = len(jobs)
+	GlobalStats.Domains = len(jobs)
+
+	///////////////////////////////
+	// generate taks list
+	///////////////////////////////
+	targetDomains := make(chan string)
+	var wg sync.WaitGroup
+	var mu = &sync.Mutex{}
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			for task := range targetDomains {				
+				sl, _ :=generateTable(task, alterations, dnsTimeOutArg, dnsRetriesArg, dnserrorLimitArg)
+				if(sl != nil){
+					mu.Lock()
+					GlobalStats.WorksToDo = append(GlobalStats.WorksToDo, sl...)
+					mu.Unlock()			
+				}
+			}
+			wg.Done()
+		}()
+	}
+		
+	for _, line := range jobs {
+		targetDomains <- line
+	}
 	
-	var bar *pb.ProgressBar
+	close(targetDomains)	
+	wg.Wait()	
+
+	///////////////////////////////
+	// Lets process the task list
+	///////////////////////////////
+	if(verboseArg){
+		fmt.Printf("total Domains: %v | valid: %v | errors: %v\n", GlobalLoadStats.Domains, GlobalLoadStats.Valid, GlobalLoadStats.Errors)
+		fmt.Printf("Works to do: %v\n", len(GlobalStats.WorksToDo))
+	}
+	
 	if(pbArg){
-		tmpl := `{{ red "Domains:" }} {{counters . | red}}  {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}}`
-		bar = pb.ProgressBarTemplate(tmpl).Start(len(jobs))
-		bar.SetWidth(50)
+		tmpl := `{{ red "Mutations:" }} {{counters . | red}}  {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} [{{speed . | green }}] [{{rtime . "ETA %s"}}]`
+		bar = pb.ProgressBarTemplate(tmpl).Start(len(GlobalStats.WorksToDo))
+		//bar = pb.Full.Start(len(GlobalStats.WorksToDo))
+		bar.SetWidth(100)
 	}
-	for _, value := range jobs {
-		if(pbArg){
-			bar.Increment()
-		}
-		processDomain(workers, value, alterations, outputFile, dnsTimeOutArg, dnsRetriesArg, dnserrorLimitArg)
+	
+	tasks := make(chan string)
+	var wg2 sync.WaitGroup
+	
+	for i := 0; i < workers; i++ {
+		wg2.Add(1)
+		go func() {
+			for task := range tasks {				
+				//fullDomain:= task + "." + job.sld + "." + job.tld + "."
+				processDNS(task, outputFile, dnsTimeOutArg, dnsRetriesArg, dnserrorLimitArg)
+			}
+			wg2.Done()
+		}()
 	}
+		
+	for _, line := range  GlobalStats.WorksToDo {
+		tasks <- line
+	}
+	
+	close(tasks)	
+	wg2.Wait()	
+		
+	///////////////////////////////
+	// Lets print the results
+	///////////////////////////////
+	
 	if(pbArg){
 		bar.Finish()
 	}
 
-	if(len(GlobalStats.fundDomains) > 0 && pbArg){
+	if(len(GlobalStats.FoundDomains) > 0 && pbArg){
 		fmt.Println("")
-		for _,v:=range GlobalStats.fundDomains{
+		for _,v:=range GlobalStats.FoundDomains{
 			fmt.Println(v)
 		}
 	}
@@ -252,32 +299,34 @@ func main() {
 
 	if(statsArg){
 		dnsManager.PrintDNSServerList()
-		fmt.Printf(" | Domains:      %24v | \n", GlobalStats.domains)
-		fmt.Printf(" | mutations:    %24v | \n", GlobalStats.mutations)
-		fmt.Printf(" | Queries:      %24v | \n", GlobalStats.queries)
-		fmt.Printf(" | Sub Found:    %24v | \n", GlobalStats.founds)
+		fmt.Printf(" | Domains:      %24v | \n", GlobalStats.Domains)
+		fmt.Printf(" | mutations:    %24v | \n", GlobalStats.Mutations)
+		fmt.Printf(" | Queries:      %24v | \n", len(GlobalStats.WorksToDo))
+		fmt.Printf(" | Sub Found:    %24v | \n", GlobalStats.Founds)
 		fmt.Printf(" -----------------------------------------\n")
 	}
-	
 }
 
-func processDomain(workers int, domain string, alterations [] string, outputFile *os.File, dnsTimeOut int, dnsRetries int, dnsErrorLimit int){
+func generateTable(domain string, alterations [] string, dnsTimeOut int, dnsRetries int, dnsErrorLimit int) ([]string, error){
+	
+	GlobalLoadStats.Domains++
 
 	_, err := url.Parse(domain)
 	if err != nil {
 		if verboseArg {
 			fmt.Printf("[-] Invalid url: %s\n", domain)
 		}
-		return
+		GlobalLoadStats.Errors++
+		return nil, err
 	}		
 	
 	domParse, _:=tld.Parse(domain)
 	
-	var job jobL
-	job.domain 	= domain					//domain: lala.test.val.redbull.com
-	job.sld 	= domParse.SLD				//sld: redbull 
-	job.tld 	= domParse.TLD 				//tld: com
-	job.trd 	= domParse.TRD				//trd: lala.test.val
+	var job def.DmutJob
+	job.Domain 	= domain					//domain: lala.test.val.redbull.com
+	job.Sld 	= domParse.SLD				//sld: redbull 
+	job.Tld 	= domParse.TLD 				//tld: com
+	job.Trd 	= domParse.TRD				//trd: lala.test.val
 	
 
 	//testing if domain response like wildcard. If this is the case, we cancel this task.
@@ -285,37 +334,15 @@ func processDomain(workers int, domain string, alterations [] string, outputFile
 		if(verboseArg){
 			fmt.Printf("[%v] dns wild card detected. Canceling this job!\n", domain)
 		}
-		return
+		GlobalLoadStats.Errors++
+		return nil, nil
 	}
 
-	job.tasks = tables.GenerateTables(job.trd, alterations)
+	tmp:= tables.GenerateTables(job, alterations)
 
-	GlobalStats.queries = GlobalStats.queries + len(job.tasks)
-	
-	if(verboseArg){
-		fmt.Printf("[%v] We have %v jobs to do.\n", domain, len(job.tasks))
-	}
-	
-	jobs := make(chan string)
-	var wg sync.WaitGroup
-	
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			for task := range jobs {				
-				fullDomain:= task + "." + job.sld + "." + job.tld + "."
-				processDNS(fullDomain, outputFile, dnsTimeOut, dnsRetries, dnsErrorLimit)
-			}
-			wg.Done()
-		}()
-	}
-		
-	for _, line := range job.tasks {
-		jobs <- line
-	}
-	
-	close(jobs)	
-	wg.Wait()	
+	GlobalLoadStats.Valid++
+
+	return tmp, nil
 }
 
 func processDNS(domain string, outputFile *os.File, dnsTimeOut int, dnsRetries int, dnsErrorLimit int) {
@@ -344,7 +371,11 @@ func processDNS(domain string, outputFile *os.File, dnsTimeOut int, dnsRetries i
 		if(found){
 			break
 		}
-	}	
+	}
+	
+	if(pbArg){
+		bar.Increment()
+	}
 }
 
 func processResponse(domain string, result resolver.JobResponse, outputFile *os.File, qType uint16)bool{
@@ -407,8 +438,6 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 			return false
 		}
 						
-		GlobalStats.founds = GlobalStats.founds + 1
-
 		if outputFileArg != "" {
 			if(ipArg){	
 				outputFile.WriteString(trimDomain + ":" + util.TrimChars(strings.Join(result.Data.CNAME,",")) + util.TrimChars(strings.Join(result.Data.A,",")) + "\n")
@@ -423,8 +452,10 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 				fmt.Printf("%v\n", trimDomain)
 			}
 		}else{ 
-			GlobalStats.fundDomains=append(GlobalStats.fundDomains, trimDomain)
+			GlobalStats.FoundDomains=append(GlobalStats.FoundDomains, trimDomain)
 		}
+
+		GlobalStats.Founds++
 
 		return true
 	}
@@ -432,7 +463,7 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 	return false
 }
 
-func checkWildCard(domain jobL, dnsTimeOut int, dnsRetries int, dnsErrorLimit int)bool{
+func checkWildCard(job def.DmutJob, dnsTimeOut int, dnsRetries int, dnsErrorLimit int)bool{
 	
 	var res resolver.JobResponse
 	var err error
@@ -441,10 +472,10 @@ func checkWildCard(domain jobL, dnsTimeOut int, dnsRetries int, dnsErrorLimit in
 	var wildcard bool = false
 	var text = []string{"supposedtonotexistmyfriend"}
 
-	tables.AddToDomain(domain.trd, text, &mutations)
+	tables.AddToDomain(job, text, &mutations)
 
 	for _, v := range mutations{
-		fullDomain:= v + "." + domain.sld + "." + domain.tld
+		fullDomain:= v + "." + job.Sld + "." + job.Tld
 
 		//fmt.Printf("[%v] trying %v\n", domain.domain, fullDomain)
 		res, err = resolver.GetDNSQueryResponse(fullDomain, miekg.TypeA, dnsTimeOut, dnsRetries, dnsErrorLimit, "8.8.8.8:53")
