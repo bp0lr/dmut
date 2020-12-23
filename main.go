@@ -487,7 +487,7 @@ func checkWildCard(job def.DmutJob, dnsTimeOut int, dnsRetries int, dnsErrorLimi
 			wildcard = true
 			break
 		}else{
-			fmt.Printf("[%v] Wilcard Positive response OK. %v\n", job.Domain, res.Data.StatusCode)
+			//fmt.Printf("[%v] Wilcard Positive response OK. %v\n", job.Domain, res.Data.StatusCode)
 			wildcard = false
 		}
 	}
