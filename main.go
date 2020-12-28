@@ -44,6 +44,7 @@ var (
 		ipArg					bool
 		statsArg				bool
 		pbArg					bool
+		saveAndExitArg			bool
 		dnsServers				[]string
 )
 
@@ -74,6 +75,7 @@ func main() {
 	flag.IntVar(&dnsTimeOutArg, "dns-timeout", 500, "Dns Server timeOut in millisecond")
 	flag.IntVar(&dnserrorLimitArg, "dns-errorLimit", 25, "How many errors until we the DNS is disabled")
 	flag.BoolVar(&pbArg, "use-pb", false, "use a progress bar")
+	flag.BoolVar(&saveAndExitArg, "save-gen", false, "save generated permutations to a file and exit")
 
 	flag.BoolVar(&updateNeededFIlesArg, "update-files", false, "Download all the default files to work with dmut. (default mutation list, resolvers, etc)")
 
@@ -235,6 +237,22 @@ func main() {
 	
 	close(targetDomains)	
 	wg.Wait()	
+
+	if(saveAndExitArg){
+		var file, err = os.Create("generated.txt")
+		if err != nil {
+			fmt.Printf("Error saving generated.txt\n%v\n", err)
+        	return
+    	}
+    	defer file.Close()
+
+		file.WriteString(fmt.Sprintln(strings.Join(GlobalStats.WorksToDo, "\n")))
+    
+    	file.Sync()
+
+		fmt.Printf("Permutation list saved to generated.txt\n")
+		os.Exit(0)
+	}
 
 	///////////////////////////////
 	// Lets process the task list
