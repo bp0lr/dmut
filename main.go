@@ -348,12 +348,14 @@ func generateTable(domain string, alterations [] string, dnsTimeOut int, dnsRetr
 	
 
 	//testing if domain response like wildcard. If this is the case, we cancel this task.
-	if(checkWildCard(job, dnsTimeOut, dnsRetries, dnsErrorLimit)){
-		if(verboseArg){
-			fmt.Printf("[%v] dns wild card detected. Canceling this job!\n", domain)
+	if(!saveAndExitArg){
+		if(checkWildCard(job, dnsTimeOut, dnsRetries, dnsErrorLimit)){
+			if(verboseArg){
+				fmt.Printf("[%v] dns wild card detected. Canceling this job!\n", domain)
+			}
+			GlobalLoadStats.Errors++
+			return nil, nil
 		}
-		GlobalLoadStats.Errors++
-		return nil, nil
 	}
 
 	tmp:= tables.GenerateTables(job, alterations)

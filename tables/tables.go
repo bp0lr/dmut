@@ -20,7 +20,8 @@ func GenerateTables(job def.DmutJob, alterations []string) []string{
 	AddToDomain(job, alterations, &res)
 	AddNumbers(job, &res)
 	AddSeparator(job, alterations, &res)
-	
+	//IncreaseNumbers(job, &res)
+
 	//removing duplicated from job.tasks
 	res = util.RemoveDuplicatesSlice(res)
 
@@ -34,12 +35,17 @@ func AddToDomain(job dmutJob, alterations []string, res *[]string){
 	//	for example to test some.test.com we are going to generate alt1.some.test.com and some.alt1.test.com
 	///////////////////////////////////////////////////////////////////////////////////////////////			
 	for _, alt := range alterations {
-
 		if(len(alt) < 1){
 			continue
 		}
 		
 		strSplit := strings.Split(job.Trd, ".")
+
+		if(strSplit[0] == ""){
+			fullDomain:= alt + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
+			continue
+		}
 
 		for i := 0; i <= len(strSplit); i++ {
 			val:=util.Insert(strSplit, i, alt)
@@ -49,6 +55,29 @@ func AddToDomain(job dmutJob, alterations []string, res *[]string){
 		}
 	}
 }	
+/*
+//IncreaseNumbers number
+func IncreaseNumbers(job def.DmutJob, res *[]string){
+	
+	strSplit := strings.Split(job.Trd, ".")
+	
+	for i := 0; i < len(strSplit); i++ {
+		ok, err := strconv.Atoi(strSplit[i])
+		if(err == nil){
+			fmt.Printf("test: %v | %v\n", strSplit, len(strSplit))
+			fmt.Printf("[%v] Valid: %v => %v\n", job.Domain, strSplit[i], ok);
+
+			for i = 
+			strSplit[i] = strclean+"-"+alt
+			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
+
+
+		}	
+	}
+
+}
+*/
 
 //AddNumbers desc
 func AddNumbers(job def.DmutJob, res *[]string){
@@ -58,6 +87,12 @@ func AddNumbers(job def.DmutJob, res *[]string){
 	///////////////////////////////////////////////////////////////////////////////////////////////		
 	for index := 0; index < 10; index++ {		
 		strSplit := strings.Split(job.Trd, ".")
+
+		if(strSplit[0] == ""){
+			fullDomain:= strconv.Itoa(index) + "." + job.Sld + "." + job.Tld
+			*res = append(*res, fullDomain)
+			continue
+		}
 
 		var fullDomain string			
 		for i := 0; i < len(strSplit); i++ {			
@@ -87,6 +122,10 @@ func AddSeparator(job def.DmutJob, alterations []string, res *[]string){
 		var fullDomain string
 
 		strSplit := strings.Split(job.Trd, ".")				
+
+		if(strSplit[0] == ""){
+			continue
+		}
 
 		for i := 0; i < len(strSplit); i++ {			
 			strclean:=strSplit[i]
