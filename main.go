@@ -338,7 +338,15 @@ func generateTable(domain string, alterations [] string, dnsTimeOut int, dnsRetr
 		return nil, err
 	}		
 	
-	domParse, _:=tld.Parse(domain)
+	domParse, err :=tld.Parse(domain)
+	if(err != nil){
+		if(verboseArg){
+			fmt.Printf("[-] Error parsing url: %s\n", domain)
+		}
+
+		GlobalLoadStats.Errors++
+		return nil, err
+	}
 	
 	var job def.DmutJob
 	job.Domain 	= domain					//domain: lala.test.val.redbull.com
