@@ -216,7 +216,7 @@ func main() {
 	var wg sync.WaitGroup
 	var mu = &sync.Mutex{}
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 50; i++ {
 		wg.Add(1)
 		go func() {
 			for task := range targetDomains {				
