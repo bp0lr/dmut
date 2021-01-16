@@ -59,7 +59,7 @@ func ReturnRandomDNSServerEntry() DNSServerEntry{
 		}		
 	}
 
-	fmt.Printf("All our dns server has reported to many errors. I can't continue.")
+	fmt.Printf("Our dns server list has reported to many errors. I can't continue.\n")
 	os.Exit(0)
 
 	return pick
