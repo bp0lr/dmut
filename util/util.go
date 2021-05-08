@@ -6,7 +6,9 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
-	"net/http"	
+	"net/http"
+	
+    mem "github.com/shirou/gopsutil/mem"	
 )
 
 //Insert func
@@ -91,4 +93,14 @@ func GetDir() (string, error) {
 	}
 	
 	return filepath.Join(usr.HomeDir, ".dmut"), nil
+}
+
+//GetTotalMemory desc
+func GetTotalMemory()int{
+	vmStat, err := mem.VirtualMemory()
+	if(err == nil){
+		return int(vmStat.Total/(1024*1024))
+	}
+
+	return 0
 }

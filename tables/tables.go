@@ -2,24 +2,34 @@ package tables
 
 import (
 	//"os"
-	//"fmt"	
-	"strings"
+	//"fmt"
+
 	"strconv"
-	
-	def 	"github.com/bp0lr/dmut/defines"
-	util 	"github.com/bp0lr/dmut/util"
+	"strings"
+
+	def "github.com/bp0lr/dmut/defines"
+	util "github.com/bp0lr/dmut/util"
 )
 
 type dmutJob = def.DmutJob
 
 //GenerateTables desc
-func GenerateTables(job def.DmutJob, alterations []string) []string{
+func GenerateTables(job def.DmutJob, alterations []string, pList def.PermutationList) []string{
 
 	var res []string
 	
-	AddToDomain(job, alterations, &res)
-	AddNumbers(job, &res)
-	AddSeparator(job, alterations, &res)
+	if(!pList.AddToDomain){
+		AddToDomain(job, alterations, &res)
+	}
+
+	if(!pList.AddNumbers){
+		AddNumbers(job, &res)
+	}
+
+	if(!pList.AddSeparator){
+		AddSeparator(job, alterations, &res)
+	}
+
 	//IncreaseNumbers(job, &res)
 
 	//removing duplicated from job.tasks

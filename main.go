@@ -5,27 +5,27 @@
 package main
 
 import (
-	"path"
-	"os"
-	"fmt"
-	"sync"
 	"bufio"
+	"fmt"
 	"io/ioutil"
-	"strings"
 	"net/url"
-	
-	dnsManager	"github.com/bp0lr/dmut/dnsManager"
-	util		"github.com/bp0lr/dmut/util"
-	tables		"github.com/bp0lr/dmut/tables"
-	resolver	"github.com/bp0lr/dmut/resolver"
-	def			"github.com/bp0lr/dmut/defines"
-	
-	flag 		"github.com/spf13/pflag"
-	tld 		"github.com/weppos/publicsuffix-go/publicsuffix"
-	
-	miekg		"github.com/miekg/dns"
+	"os"
+	"path"
+	"strings"
+	"sync"
 
-	pb			"github.com/cheggaaa/pb/v3"
+	def "github.com/bp0lr/dmut/defines"
+	dnsManager "github.com/bp0lr/dmut/dnsManager"
+	resolver "github.com/bp0lr/dmut/resolver"
+	tables "github.com/bp0lr/dmut/tables"
+	util "github.com/bp0lr/dmut/util"
+
+	flag "github.com/spf13/pflag"
+	tld "github.com/weppos/publicsuffix-go/publicsuffix"
+
+	miekg "github.com/miekg/dns"
+
+	pb "github.com/cheggaaa/pb/v3"
 )
 
 var (
@@ -46,6 +46,7 @@ var (
 		pbArg					bool
 		saveAndExitArg			bool
 		dnsServers				[]string
+		PermutationListArg		def.PermutationList	
 )
 
 
@@ -77,6 +78,10 @@ func main() {
 	flag.BoolVar(&pbArg, "use-pb", false, "use a progress bar")
 	flag.BoolVar(&saveAndExitArg, "save-gen", false, "save generated permutations to a file and exit")
 
+	flag.BoolVar(&PermutationListArg.AddToDomain, "disable-permutations", false, "Disable permutations generation")
+	flag.BoolVar(&PermutationListArg.AddNumbers, "disable-addnumbers", false, "Disable add numbers generation")
+	flag.BoolVar(&PermutationListArg.AddSeparator, "disable-addseparator", false, "Disable add separator generation")
+	
 	flag.BoolVar(&updateNeededFIlesArg, "update-files", false, "Download all the default files to work with dmut. (default mutation list, resolvers, etc)")
 
 	flag.Parse()
@@ -220,7 +225,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			for task := range targetDomains {				
-				sl, _ :=generateTable(task, alterations, dnsTimeOutArg, dnsRetriesArg, dnserrorLimitArg)
+				sl, _ :=generateTable(task, alterations, dnsTimeOutArg, dnsRetriesArg, dnserrorLimitArg, PermutationListArg)
 				if(sl != nil){
 					mu.Lock()
 					GlobalStats.WorksToDo = append(GlobalStats.WorksToDo, sl...)
@@ -325,7 +330,7 @@ func main() {
 	}
 }
 
-func generateTable(domain string, alterations [] string, dnsTimeOut int, dnsRetries int, dnsErrorLimit int) ([]string, error){
+func generateTable(domain string, alterations [] string, dnsTimeOut int, dnsRetries int, dnsErrorLimit int, permutationList def.PermutationList) ([]string, error){
 	
 	GlobalLoadStats.Domains++
 
@@ -366,7 +371,7 @@ func generateTable(domain string, alterations [] string, dnsTimeOut int, dnsRetr
 		}
 	}
 
-	tmp:= tables.GenerateTables(job, alterations)
+	tmp:= tables.GenerateTables(job, alterations, permutationList)
 
 	GlobalLoadStats.Valid++
 

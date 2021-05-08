@@ -24,3 +24,9 @@ type LoadStats struct{
 	Valid int
 	Errors int
 }
+
+type PermutationList struct{
+	AddToDomain bool
+	AddNumbers bool
+	AddSeparator bool
+}
