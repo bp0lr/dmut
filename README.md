@@ -133,19 +133,26 @@ the same but using a subdomain list.
 
 ```
 Usage of dmut:
-  -d, --dictionary string    Dictionary file containing mutation list
-      --dns-errorLimit int   How many errors until we the DNS is disabled (default 25)
-      --dns-retries int      Max amount of retries for failed dns queries (default 3)
-      --dns-timeout int      Dns Server timeOut in millisecond (default 500)
-  -s, --dnsFile string       Use DNS servers from this file
-  -l, --dnsServers string    Use DNS servers from a list separated by ,
-  -o, --output string        Output file to save the results to
-      --show-ip              Display extra info for valid results
-      --show-stats           Display stats about the current job
-      --update-dnslist       Download a list of periodically validated public DNS resolvers
-  -u, --url string           Target URL
-  -v, --verbose              Add verboicity to the process
-  -w, --workers int          How many Workers amount (default 25)
+  -d, --dictionary string      Dictionary file containing mutation list
+      --dns-errorLimit int     How many errors until we the DNS is disabled (default 25)
+      --dns-retries int        Amount of retries for failed dns queries (default 3)
+      --dns-timeout int        Dns Server timeOut in millisecond (default 500)
+  -s, --dnsFile string         Use DNS servers from this file
+  -l, --dnsServers string      Use DNS servers from a list separated by ,
+  -o, --output string          Output file to save the results to
+      --save-gen               save generated permutations to a file and exit
+      --show-ip                Display info for valid results
+      --show-stats             Display stats about the current job
+      --update-dnslist         Download a list of periodically validated public DNS resolvers
+      --update-files           Download all the default files to work with dmut. (default mutation list, resolvers, etc)
+  -u, --url string             Target URL
+      --use-pb                 use a progress bar
+  -v, --verbose                Add verboicity to the process
+  -w, --workers int            Number of workers (default 25)
+      --disable-addnumbers     Disable add numbers generation
+      --disable-addseparator   Disable add separator generation
+      --disable-permutations   Disable permutations generation
+  
 ```
 
 ### Wildcard filtering
