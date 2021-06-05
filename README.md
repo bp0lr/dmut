@@ -141,6 +141,7 @@ Usage of dmut:
   -l, --dnsServers string      Use DNS servers from a list separated by ,
   -o, --output string          Output file to save the results to
       --save-gen               save generated permutations to a file and exit
+      --save-to                save generated permutations to this location
       --show-ip                Display info for valid results
       --show-stats             Display stats about the current job
       --update-dnslist         Download a list of periodically validated public DNS resolvers
