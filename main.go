@@ -38,6 +38,7 @@ var (
 		outputFileArg			string
 		dnsFileArg				string
 		dnsArg					string
+		saveLocationArg			string
 		verboseArg				bool
 		updateDNSArg			bool
 		updateNeededFIlesArg	bool
@@ -77,6 +78,7 @@ func main() {
 	flag.IntVar(&dnserrorLimitArg, "dns-errorLimit", 25, "How many errors until we the DNS is disabled")
 	flag.BoolVar(&pbArg, "use-pb", false, "use a progress bar")
 	flag.BoolVar(&saveAndExitArg, "save-gen", false, "save generated permutations to a file and exit")
+	flag.StringVarP(&saveLocationArg, "save-to", "", "generated.txt", "save generated file to this location")
 
 	flag.BoolVar(&PermutationListArg.AddToDomain, "disable-permutations", false, "Disable permutations generation")
 	flag.BoolVar(&PermutationListArg.AddNumbers, "disable-addnumbers", false, "Disable add numbers generation")
@@ -244,9 +246,9 @@ func main() {
 	wg.Wait()	
 
 	if(saveAndExitArg){
-		var file, err = os.Create("generated.txt")
+		var file, err = os.Create(saveLocationArg)
 		if err != nil {
-			fmt.Printf("Error saving generated.txt\n%v\n", err)
+			fmt.Printf("Error saving to %v\n%v\n", saveLocationArg, err)
         	return
     	}
     	defer file.Close()
@@ -255,7 +257,7 @@ func main() {
     
     	file.Sync()
 
-		fmt.Printf("Permutation list saved to generated.txt\n")
+		fmt.Printf("Permutation list saved to %v\n", saveLocationArg)
 		os.Exit(0)
 	}
 
