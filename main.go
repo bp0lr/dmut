@@ -521,9 +521,18 @@ func checkWildCard(job def.DmutJob, dnsTimeOut int, dnsRetries int, dnsErrorLimi
 			//fmt.Printf("[%v] Wilcard Positive response. Canceling tasks: %v\n", job.Domain, mutation)
 			wildcard = true
 			break
-		}else{
-			//fmt.Printf("[%v] Wilcard Positive response OK. %v\n", job.Domain, res.Data.StatusCode)
-			wildcard = false
+		}
+
+		res, err = resolver.GetDNSQueryResponse(mutation, miekg.TypeCNAME, dnsTimeOut, dnsRetries, dnsErrorLimit, "8.8.8.8:53")
+		if(err != nil){
+			//fmt.Printf("antiWild reported err: %v\n", err)
+			continue
+		}
+
+		if(res.Status && res.Data.StatusCode != "NXDOMAIN"){
+			//fmt.Printf("[%v] Wilcard Positive response. Canceling tasks: %v\n", job.Domain, mutation)
+			wildcard = true
+			break
 		}
 	}
 
