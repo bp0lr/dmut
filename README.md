@@ -104,7 +104,7 @@ just wow!
 
 Install is quick and clean
 ```
-go get -u github.com/bp0lr/dmut
+go install github.com/bp0lr/dmut@latest
 ```
 
 You need a mutations list to make dmut works.
