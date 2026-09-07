@@ -1,175 +1,231 @@
-## dmut
+# dmut
 
-### what?
+A Go command-line tool that generates subdomain name variations from a dictionary
+and can resolve the resulting names. Use it for domains you own or are authorized
+to assess.
 
-A tool written in golang to perform permutations, mutations and alteration of subdomains and brute force the result.
+dmut supports stdin, offline generation, text output files, optional progress
+reporting, and configurable DNS resolvers.
 
-![https://asciinema.org/a/xNDmWT0xkVyuR3vwl99kqy9RB](https://asciinema.org/a/xNDmWT0xkVyuR3vwl99kqy9RB.png)
+## Requirements and installation
 
-### why?
+Building this checkout requires **Go 1.27.1 or newer**. The Go command can select
+the required toolchain automatically when toolchain downloads are enabled.
 
-I'm doing some work on automatization for bug bounty, and I found myself needing something to brute force for new subdomains using these techniques.
+Install the latest published version:
 
-Doing some research I found altdns, a tool that does what I need but written in python.
-
-Speed is everything in bug bounty, usually, you have many subdomains to scan so I put myself in the task of writing a new tool that did the same as altdns but focused on speed and adding some improvements to the complete process.
-
-
-### type of permutations, mutations, alterations.
-
-The main subdomain is **a.b.com**
-from a word list, where you have for example the word **stage**, dmut will generate and try for a positive response:
-
-- stagea.b.com
-- astage.b.com
-- stage.a.b.com
-- a.stage.b.com
-- stage-a.b.com
-- a-stage.b.com
-
-
-### dns servers
-
-To get the best from **dmut**, you need a DNS server list.
-
-
-Using [dnsFaster](https://github.com/bp0lr/dnsfaster), I have created a github action to run this tool again a public list generated from (https://public-dns.info/nameserver/us.txt).
-
-
-this action runs one time a day and update the repo automatically.
-
-You can download this list from the repo [dmut-resolvers](https://github.com/bp0lr/dmut-resolvers) or running **dmut** with the flag --update-dnslist to update your local copy.
-
-```
-dmut --update-dnslist
-```
-and the new list would be saved to /~/.dmut/resolvers.txt
-
-
-it's really important to have your list in the best shape possible. The resolution times varied from one DNS server to another, you have some server doing DNS hijacking for some domains or responding with errors after several connections.
-Be careful and take your time to test your list.
-
-
-### Speed
-
-**dmut** is significantly much faster than his python brother.
-
-I did some tests to compare his speed using the same options and an accurate DNS server list.
-
-```
-root@dnsMaster# time python3 altdns.py -i list.txt -o data_output -r -w words.txt -t 100 -f /root/.dmut/resolvers.txt -s results.txt
-...
-real    9m44.712s
-user    7m7.741s
-sys     1m6.288s
-
-root@dnsMaster# wc -l results.txt
-55
-```
-
-```
-root@dnsMaster# time cat list.txt | dmut -w 100 -d words.txt --dns-retries 3 -o results.txt -s /root/.dmut/resolvers.txt --dns-errorLimit 50 --dns-timeout 350 --show-stats
-...
-real    5m31.318s
-user    1m4.024s
-sys     0m41.876s
-
-root@dnsMaster# wc -l results.txt
-55
-```
-
-If you run the same test but using a default DNS server list downloaded from public-dns.info, the difference is just too much.
-Here is where the anti-hijacking, found confirmations, DNS timeout and extra checks come to play in favor of dmut.
-
-```
-root@dnsMaster# time python3 altdns.py -i list.txt -o data_output -r -w words.txt -t 100 -f dnsinfo-list.txt -s results.txt
-...
-real    112m6.295s
-user    8m17.104s
-sys     1m14.583s
-```
-
-```
-cat list.txt | ./dmut-binary -w 100 -d words.txt --dns-retries 3 -o results.txt -s dnsinfo-list.txt --dns-errorLimit 10 --dns-timeout 300 --show-stats
-real    8m21.627s
-user    1m14.191s
-sys     0m48.982s
-```
-
-just wow!
-
-
-
-### Install
-
-Install is quick and clean
-```
+~~~sh
 go install github.com/bp0lr/dmut@latest
-```
+dmut --version
+dmut --help
+~~~
 
-You need a mutations list to make dmut works.
+Make sure the Go binary installation directory is on your PATH. It is GOBIN when
+configured, otherwise the bin directory under GOPATH.
 
-You can use my list downloading the file from [here](https://raw.githubusercontent.com/bp0lr/dmut/main/words.txt)
+To build the current checkout:
 
+~~~sh
+go build -o dmut .
+~~~
 
-### examples
-```
-dmut -u "test.example.com" -d mutations.txt -w 100 --dns-timeout 300 --dns-retries 5 --dns-errorLimit 25 --show-stats -o results.txt
-```
-this will run **dmut** again test.example.com, using the word list mutations.txt, using 100 workers, having a DNS timeout of 300ms and 5 retries for each error. 
-If a DNS server reaches 25 errors, this server is blacklisted and not used again.
+On Windows, use:
 
-Show stats add some verbose to the process.
+~~~powershell
+go build -o dmut.exe .
+.\dmut.exe --help
+~~~
 
-If we found something would be saved to results.txt
+The executable remains at the module root, so the installation path is unchanged.
 
-```
-cat subdomainList.txt | dmut -d mutations.txt -w 100 --dns-timeout 300 --dns-retries 5 --dns-errorLimit 25 --show-stats -o results.txt
-```
-the same but using a subdomain list.
+## Quick start: generate a file offline
 
+The repository includes [words.txt](words.txt), a small starter dictionary.
+Provide one word per line in your own dictionary. Blank lines and surrounding
+whitespace are ignored; both LF and CRLF files are accepted.
 
-### options
+~~~sh
+dmut -u test.example.com -d words.txt --save-gen --save-to generated.txt
+~~~
 
-```
-Usage of dmut:
-  -d, --dictionary string      Dictionary file containing mutation list
-      --dns-errorLimit int     How many errors until we the DNS is disabled (default 25)
-      --dns-retries int        Amount of retries for failed dns queries (default 3)
-      --dns-timeout int        Dns Server timeOut in millisecond (default 500)
-  -s, --dnsFile string         Use DNS servers from this file
-  -l, --dnsServers string      Use DNS servers from a list separated by ,
-  -o, --output string          Output file to save the results to
-      --save-gen               save generated permutations to a file and exit
-      --save-to                save generated permutations to this location
-      --show-ip                Display info for valid results
-      --show-stats             Display stats about the current job
-      --update-dnslist         Download a list of periodically validated public DNS resolvers
-      --update-files           Download all the default files to work with dmut. (default mutation list, resolvers, etc)
-  -u, --url string             Target URL
-      --use-pb                 use a progress bar
-  -v, --verbose                Add verboicity to the process
-  -w, --workers int            Number of workers (default 25)
-      --disable-addnumbers     Disable add numbers generation
-      --disable-addseparator   Disable add separator generation
-      --disable-permutations   Disable permutations generation
-  
-```
+This writes generated names without DNS queries. The destination is replaced
+only after the new file has been written successfully. The output option and
+resolver configuration are unused in this mode.
 
-### Wildcard filtering
-**dmut** will test each subdomain for wildcards, requesting a not supposed to exist subdomain.
+Offline generation reads domains one at a time and snapshots the normalized
+dictionary to disk. Generated names are sorted and deduplicated in temporary
+files, using a roughly 4 MiB sorting buffer and at most 32 input runs per merge.
+These are buffer sizes, **not limits on the number of words, domains or results**.
+Memory also includes I/O buffers, runtime overhead and the longest records.
 
-If we get a positive response the job will be ignored.
+Temporary files are created beside the destination selected by **--save-to**.
+Allow additional disk space for the dictionary snapshot, sorting runs and the
+new output while the previous output is still present. Temporary data is removed
+after success, cancellation or a reported error. Forced termination or a machine
+crash can leave temporary files behind.
 
+Names are sorted within each input domain, and domains are processed in input
+order. Deduplication remains per input domain: repeated input domains can produce
+repeated output. **--workers** controls DNS resolution and is not used by the
+offline mode; lowering it is no longer needed to address issue #15.
 
-### Contributing
-Everyone is encouraged to contribute to **dmut** by forking the Github repository and making a pull request or opening an issue.
+Input must be a **domain name**, such as test.example.com, without a URL scheme,
+path or port. The historical flag name **--url** is retained for compatibility.
 
+To read multiple domains from stdin on Linux or macOS:
 
-### AltDNS
+~~~sh
+cat domains.txt | dmut -d words.txt --save-gen --save-to generated.txt
+~~~
 
-altdns was originaly created by **infosec-au** and can be found here (https://github.com/infosec-au/altdns)
+In PowerShell:
 
-Looks like the project was abandoned at some point, so I had forked and did my own version with some improvements. (https://github.com/bp0lr/altdns)
+~~~powershell
+Get-Content domains.txt | dmut -d words.txt --save-gen --save-to generated.txt
+~~~
 
-I want to thank **infosec-au** because his work was my inspiration for dmut.
+## Resolve names
+
+For an authorized domain:
+
+~~~sh
+dmut -u test.example.com -d words.txt -o results.txt
+~~~
+
+Results go to stdout and are appended to results.txt. Existing output is
+preserved. An empty result file is retained, and output from interrupted or failed
+runs may be partial. Check the exit code before treating a run as complete.
+
+Diagnostics, statistics, progress and update messages go to stderr. **--use-pb**
+does not suppress results or change the selected result format. Ordering is
+unspecified because work runs concurrently.
+
+**--show-ip** includes CNAME and IPv4 records. The legacy file and terminal layouts
+differ; they are text formats, not JSON or CSV.
+
+## Resolver configuration
+
+Resolver sources are selected in this order:
+
+1. **--dns-servers** / **-l**.
+2. **--dns-file** / **-s**.
+3. The resolvers.txt file in the configuration directory, if present.
+4. The built-in Cloudflare, Google and Quad9 resolver addresses.
+
+An explicitly selected empty or unreadable file is an error. Use one IPv4 address
+per line, optionally followed by a colon and port; the default port is 53. Blank
+lines and surrounding whitespace are ignored. **--dns-servers** takes a
+comma-separated list and overrides the resolver file.
+
+Update the two resolver lists:
+
+~~~sh
+dmut --update-dnslist
+~~~
+
+Update the resolver lists and starter dictionary:
+
+~~~sh
+dmut --update-files
+~~~
+
+Files are stored in **~/.dmut** on Unix and **%USERPROFILE%\.dmut** on Windows:
+
+| File | Source | Used automatically? |
+| --- | --- | --- |
+| resolvers.txt | [dmut-resolvers](https://github.com/bp0lr/dmut-resolvers) | Yes, when no resolver flags are supplied |
+| top20.txt | [dmut-resolvers](https://github.com/bp0lr/dmut-resolvers) | No; select it with --dns-file |
+| words.txt | This repository | No; select it with --dictionary |
+
+Downloads have a 30-second timeout and a 32 MiB limit per file. Failed, empty or
+incomplete downloads preserve the previous file. Updates are applied one file at
+a time, so a later failure does not roll back earlier successful files. Replacement
+uses a temporary file in the destination directory; rename atomicity depends on
+the operating system and filesystem.
+
+## Options
+
+Run **dmut --help** for the authoritative reference.
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| -u, --url | stdin | Input domain name |
+| -d, --dictionary | required | Dictionary path; not required for help, version or updates |
+| -w, --workers | 25 | DNS workers, from 1 through 150; unused by --save-gen |
+| --dns-timeout | 500 | Timeout in milliseconds, from 1 through 10000 |
+| --dns-retries | 3 | Maximum attempts per query, at least 1 |
+| --dns-error-limit | 25 | Disable a resolver after **more than** this many errors; at least 1 |
+| -s, --dns-file | configuration lookup | Resolver list file |
+| -l, --dns-servers | configuration lookup | Comma-separated resolvers; overrides --dns-file |
+| -o, --output | none | Append results to a file |
+| --save-gen | false | Write generated names without DNS queries, then exit |
+| --save-to | generated.txt | Destination for --save-gen |
+| --show-ip | false | Include CNAME and IPv4 records |
+| --show-stats | false | Write job statistics to stderr |
+| --use-pb | false | Write a progress bar to stderr |
+| -v, --verbose | false | Write diagnostics to stderr |
+| --update-dnslist | false | Update resolvers.txt and top20.txt, then exit |
+| --update-files | false | Update both resolver lists and words.txt, then exit |
+| --disable-permutations | false | Disable word insertion |
+| --disable-addnumbers | false | Disable numeric additions |
+| --disable-addseparator | false | Disable word concatenation and separators |
+| --version | | Show the build version |
+| -h, --help | | Show help |
+
+The old spellings **--dnsFile**, **--dnsServers** and **--dns-errorLimit** remain
+aliases. Invalid numeric arguments now produce an error instead of silently
+reverting to defaults.
+
+## Exit codes and cancellation
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Completed successfully, including a run with no matches |
+| 1 | Input, download, DNS or output failure |
+| 2 | Invalid command-line arguments |
+| 130 | Interrupted with Ctrl+C |
+
+A DNS transport failure after the configured attempts now stops the run and
+returns an error, rather than silently reporting success with missing work.
+Workers are joined before exit; canceled downloads preserve the previous file.
+Errors writing results or closing the output file are also reported.
+
+## Existing behavior and limitations
+
+- The original generation rules are retained. Offline generation uses disk-backed
+  sorting with bounded buffers. The DNS resolution workflow still holds its
+  generated work in memory; this change addresses the offline case in issue #15.
+- Duplicate names are removed within each generation job, not across all input
+  domains. Offline output follows input-domain order and lexical order within
+  each domain; DNS result order is not stable.
+- Text inputs keep the existing 1 MiB limit per line. There is no total input or
+  output count limit in offline mode. Memory usage can still depend on individual
+  word/domain lengths, and disk space must be sufficient for temporary files.
+- The resolution workflow checks A and CNAME records.
+- Wildcard checking uses a fixed probe and Google DNS (8.8.8.8:53). The existing
+  policy skips a job when a completed probe response is not NXDOMAIN; it can
+  discard domains in situations other than a wildcard.
+- Result confirmation also uses Google DNS with fixed settings. Selecting a
+  custom resolver list does **not** keep all queries on that list, which matters
+  for private or split-horizon DNS.
+- Resolver lists change over time. Their source does not guarantee that every
+  server is available or returns correct answers.
+- Historical comparisons with altdns used different environments and resolver
+  lists. They are not a current performance guarantee.
+
+## Development and releases
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for checks, package responsibilities and the
+release procedure. CI runs tests and builds on Linux, Windows and macOS, checks
+formatting and dependencies, and runs the race detector on Linux.
+
+The release workflow prepares archives and SHA-256 checksums for Linux, macOS and
+Windows on amd64 and arm64. It uploads workflow artifacts for review; publication
+as a GitHub Release is a separate maintainer action.
+
+## Credits and license
+
+Inspired by [altdns](https://github.com/infosec-au/altdns), originally created by
+**infosec-au**. Thanks to its authors and contributors.
+
+[MIT license](LICENSE).

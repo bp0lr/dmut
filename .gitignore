@@ -15,3 +15,8 @@
 # vendor/
 
 .vscode/
+
+# Local builds and release archives
+/dmut
+/dist/
+/generated.txt

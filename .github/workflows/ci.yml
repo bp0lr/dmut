@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Verify dependencies
+        run: go mod verify
+      - name: Test
+        run: go test -count=1 ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./...
+      - name: Race detector
+        if: runner.os == 'Linux'
+        run: go test -race -count=1 ./...
+      - name: Offline large-file memory regression
+        if: runner.os == 'Linux'
+        env:
+          DMUT_TEST_LARGE_FILES: '1'
+        run: go test -run '^TestOfflineMemoryBound$' -count=1 -v .
+
+  hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Check formatting
+        run: |
+          files=$(gofmt -l $(git ls-files '*.go'))
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files"
+            exit 1
+          fi
+      - name: Check module metadata
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Check known vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...

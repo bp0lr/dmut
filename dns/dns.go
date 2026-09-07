@@ -1,215 +1,106 @@
-package retryabledns
+// Package dns provides the DNS client used by dmut.
+package dns
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"encoding/json"
-	"math/rand"
+	"errors"
+	"fmt"
 	"net"
-	"reflect"
-	"sort"
+	"slices"
 	"strings"
-	"sync"
 	"time"
-	//"fmt"
 
-	dnsManager	"github.com/bp0lr/dmut/dnsManager"
-
+	dnsmanager "github.com/bp0lr/dmut/dnsManager"
 	"github.com/miekg/dns"
 )
 
-// Client is a DNS resolver client to resolve hostnames.
+// Client holds immutable query settings and a synchronized resolver pool.
 type Client struct {
-	resolvers  	[]string
-	maxRetries 	int
-	dnsTimeOut	int
-	errorLimit	int
-	mutex      	*sync.Mutex
+	pool       *dnsmanager.Pool
+	maxRetries int
+	dnsTimeOut int
+	errorLimit int
 }
 
-// New creates a new dns client
-func New(dnsTimeOut int, maxRetries int, errorLimit int) *Client {
-	client := Client{
-		mutex:      &sync.Mutex{},
-		dnsTimeOut: dnsTimeOut,
-		maxRetries: maxRetries,
-		errorLimit: errorLimit,
+// New creates a client with an explicitly owned resolver pool.
+func New(pool *dnsmanager.Pool, timeout, retries, errorLimit int) *Client {
+	return &Client{pool: pool, dnsTimeOut: timeout, maxRetries: retries, errorLimit: errorLimit}
+}
+
+// Query sends one record query with cancellation support.
+func (c *Client) Query(ctx context.Context, host string, requestType uint16, customDNSServer string) (*DNSData, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-	return &client
-}
-
-// Resolve is the underlying resolve function that actually resolves a host
-// and gets the ip records for that host.
-func (c *Client) Resolve(host string) (*DNSData, error) {
-	return c.Query(host, dns.TypeA, "")
-}
-
-// Do sends a provided dns request and return the raw native response
-func (c *Client) Do(msg *dns.Msg) (resp *dns.Msg, err error) {
-
-	cli := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
-
-	for i := 0; i < c.maxRetries; i++ {
-		resolver := c.resolvers[rand.Intn(len(c.resolvers))]
-		resp, _, err = cli.Exchange(msg, resolver)
+	if c.maxRetries < 1 || c.dnsTimeOut < 1 || c.errorLimit < 1 {
+		return nil, errors.New("invalid DNS client settings")
+	}
+	msg := new(dns.Msg)
+	name := dns.Fqdn(host)
+	if requestType == dns.TypePTR && net.ParseIP(host) != nil {
+		var err error
+		name, err = dns.ReverseAddr(host)
 		if err != nil {
-			//fmt.Printf("err: %v\n", err)
+			return nil, err
+		}
+		msg.SetEdns0(dns.DefaultMsgSize, false)
+	}
+	msg.SetQuestion(name, requestType)
+	udp := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
+	var lastErr error
+	for i := 0; i < c.maxRetries; i++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		server := customDNSServer
+		if server == "" {
+			if c.pool == nil {
+				return nil, dnsmanager.ErrUnavailable
+			}
+			entry, err := c.pool.Pick()
+			if err != nil {
+				return nil, err
+			}
+			server = entry.Host
+		}
+		resp, _, err := udp.ExchangeContext(ctx, msg, server)
+		if err == nil && resp != nil && resp.Truncated {
+			tcp := dns.Client{Net: "tcp", Timeout: udp.Timeout}
+			resp, _, err = tcp.ExchangeContext(ctx, msg, server)
+		}
+		if err == nil && resp == nil {
+			err = errors.New("empty DNS response")
+		}
+		if err == nil && resp.Rcode == dns.RcodeServerFailure {
+			err = errors.New("DNS server returned SERVFAIL")
+		}
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			lastErr = fmt.Errorf("query %s using %s: %w", host, server, err)
+			if c.pool != nil {
+				c.pool.ReportError(server, c.errorLimit)
+			}
 			continue
 		}
-
-		// In case we get a non empty answer stop retrying
-		if resp != nil {
-			return
+		data := &DNSData{
+			Host: host, Raw: resp.String(), StatusCode: dns.RcodeToString[resp.Rcode],
+			Resolver: []string{server}, OriReq: msg.String(), OriRes: resp.String(),
 		}
+		if err := data.ParseFromMsg(resp); err != nil {
+			return nil, err
+		}
+		data.dedupe()
+		return data, nil
 	}
-
-	return
+	return nil, lastErr
 }
 
-// Query sends a provided dns request and return enriched response
-func (c *Client) Query(host string, requestType uint16, customDNSServer string) (*DNSData, error) {
-	return c.QueryMultiple(host, []uint16{requestType}, customDNSServer)
-}
-
-// QueryMultiple sends a provided dns request and return the data
-func (c *Client) QueryMultiple(host string, requestTypes []uint16, customDNSServer string) (*DNSData, error) {
-	
-	var (
-		dnsdata 	DNSData
-		err     	error
-		msg     	dns.Msg
-	)
-
-	cliUDP := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}		
-	for _, requestType := range requestTypes {
-
-		msg.Id = dns.Id()
-		msg.RecursionDesired = true
-		msg.Question = make([]dns.Question, 1)
-
-		name := dns.Fqdn(host)
-
-		// In case of PTR adjust the domain name
-		if requestType == dns.TypePTR {
-			var err error
-			if net.ParseIP(host) != nil {
-				name, err = dns.ReverseAddr(host)
-				if err != nil {
-					return nil, err
-				}
-			}
-			msg.SetEdns0(dns.DefaultMsgSize, false)
-		}
-
-		question := dns.Question{
-			Name:   name,
-			Qtype:  requestType,
-			Qclass: dns.ClassINET,
-		}
-		
-		msg.Question[0] = question
-		
-		var dnsServer string
-		for i := 0; i < c.maxRetries; i++ {			
-			
-			if(len(customDNSServer) == 0){
-				val:=dnsManager.ReturnRandomDNSServerEntry();						
-				dnsServer = val.Host
-			}else{
-				dnsServer = customDNSServer
-			}
-			
-			var resp *dns.Msg
-			resp, _, err = cliUDP.Exchange(&msg, dnsServer)
-			
-			if err != nil {
-				dnsManager.ReportDNSError(dnsServer, c.errorLimit)
-				//fmt.Printf("err: %v\n", err)
-				continue;
-			}
-
-			if resp != nil && resp.Truncated {
-				//fmt.Printf("[truncate | %v]: %v\n", dnsServer, msg.Question[0].String())
-				
-				//We have a truncated response, lets retry the query using TCP
-				cliTCP := dns.Client{Net: "tcp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
-				resp, _, err = cliTCP.Exchange(&msg, dnsServer)
-			}
-
-			if err != nil && len(customDNSServer) == 0 {
-				dnsManager.ReportDNSError(dnsServer, c.errorLimit)
-				//fmt.Printf("err: %v\n", err)
-				continue;
-			}
-
-			if(dns.RcodeToString[resp.Rcode] == "SERVFAIL"){
-				dnsManager.ReportDNSError(dnsServer, c.errorLimit)
-				continue;
-			}
-
-			dnsdata.Host = host
-			dnsdata.Raw += resp.String()
-			dnsdata.StatusCode = dns.RcodeToString[resp.Rcode]
-			
-			if(dnsdata.StatusCode != "NXDOMAIN"){
-				//fmt.Printf("[%v] : %v\n", host, dnsdata.StatusCode)
-			}
-			
-			dnsdata.Resolver = append(dnsdata.Resolver, dnsServer)
-			dnsdata.OriReq = msg.String()
-			dnsdata.OriRes = resp.String()
-
-			dnsdata.ParseFromMsg(resp)
-			break
-		}
-	}
-
-	dnsdata.dedupe()
-	return &dnsdata, err
-}
-
-func parse(answer *dns.Msg, requestType uint16) (results []string) {
-	for _, record := range answer.Answer {
-		switch requestType {
-		case dns.TypeA:
-			if t, ok := record.(*dns.A); ok {
-				results = append(results, t.A.String())
-			}
-		case dns.TypeNS:
-			if t, ok := record.(*dns.NS); ok {
-				results = append(results, t.Ns)
-			}
-		case dns.TypeCNAME:
-			if t, ok := record.(*dns.CNAME); ok {
-				results = append(results, t.Target)
-			}
-		case dns.TypeSOA:
-			if t, ok := record.(*dns.SOA); ok {
-				results = append(results, t.Mbox)
-			}
-		case dns.TypePTR:
-			if t, ok := record.(*dns.PTR); ok {
-				results = append(results, t.Ptr)
-			}
-		case dns.TypeMX:
-			if t, ok := record.(*dns.MX); ok {
-				results = append(results, t.Mx)
-			}
-		case dns.TypeTXT:
-			if t, ok := record.(*dns.TXT); ok {
-				results = append(results, t.Txt...)
-			}
-		case dns.TypeAAAA:
-			if t, ok := record.(*dns.AAAA); ok {
-				results = append(results, t.AAAA.String())
-			}
-		}
-	}
-
-	return
-}
-
-//DNSData desc
+// DNSData contains the records and metadata returned by a DNS query.
 type DNSData struct {
 	Host       string   `json:"host,omitempty"`
 	TTL        int      `json:"ttl,omitempty"`
@@ -224,8 +115,8 @@ type DNSData struct {
 	TXT        []string `json:"txt,omitempty"`
 	Raw        string   `json:"raw,omitempty"`
 	StatusCode string   `json:"status_code,omitempty"`
-	OriRes		string
-	OriReq		string
+	OriRes     string
+	OriReq     string
 }
 
 // ParseFromMsg and enrich data
@@ -268,18 +159,27 @@ func trimChars(s string) string {
 
 func (d *DNSData) dedupe() {
 	// dedupe all records
-	dedupeSlice(&d.Resolver, less(&d.Resolver))
-	dedupeSlice(&d.A, less(&d.A))
-	dedupeSlice(&d.AAAA, less(&d.AAAA))
-	dedupeSlice(&d.CNAME, less(&d.CNAME))
-	dedupeSlice(&d.MX, less(&d.MX))
-	dedupeSlice(&d.PTR, less(&d.PTR))
-	dedupeSlice(&d.SOA, less(&d.SOA))
-	dedupeSlice(&d.NS, less(&d.NS))
-	dedupeSlice(&d.TXT, less(&d.TXT))
+	slices.Sort(d.Resolver)
+	d.Resolver = slices.Compact(d.Resolver)
+	slices.Sort(d.A)
+	d.A = slices.Compact(d.A)
+	slices.Sort(d.AAAA)
+	d.AAAA = slices.Compact(d.AAAA)
+	slices.Sort(d.CNAME)
+	d.CNAME = slices.Compact(d.CNAME)
+	slices.Sort(d.MX)
+	d.MX = slices.Compact(d.MX)
+	slices.Sort(d.PTR)
+	d.PTR = slices.Compact(d.PTR)
+	slices.Sort(d.SOA)
+	d.SOA = slices.Compact(d.SOA)
+	slices.Sort(d.NS)
+	d.NS = slices.Compact(d.NS)
+	slices.Sort(d.TXT)
+	d.TXT = slices.Compact(d.TXT)
 }
 
-//Marshal desc
+// Marshal encodes DNS data using gob.
 func (d *DNSData) Marshal() ([]byte, error) {
 	var b bytes.Buffer
 	enc := gob.NewEncoder(&b)
@@ -291,7 +191,7 @@ func (d *DNSData) Marshal() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-//Unmarshal desc
+// Unmarshal decodes DNS data from gob.
 func (d *DNSData) Unmarshal(b []byte) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(b))
 	err := dec.Decode(&d)
@@ -299,28 +199,4 @@ func (d *DNSData) Unmarshal(b []byte) error {
 		return err
 	}
 	return nil
-}
-
-func less(v interface{}) func(i, j int) bool {
-	s := *v.(*[]string)
-	return func(i, j int) bool { return s[i] < s[j] }
-}
-
-func dedupeSlice(slicePtr interface{}, less func(i, j int) bool) {
-	v := reflect.ValueOf(slicePtr).Elem()
-	if v.Len() <= 1 {
-		return
-	}
-	sort.Slice(v.Interface(), less)
-
-	i := 0
-	for j := 1; j < v.Len(); j++ {
-		if !less(i, j) {
-			continue
-		}
-		i++
-		v.Index(i).Set(v.Index(j))
-	}
-	i++
-	v.SetLen(i)
 }
