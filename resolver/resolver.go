@@ -1,30 +1,37 @@
+// Package resolver adapts DNS records to application responses.
 package resolver
 
-import (	
-	dns "github.com/bp0lr/dmut/dns"
+import (
+	"context"
+	"fmt"
+
+	"github.com/bp0lr/dmut/dns"
 )
 
-//JobResponse desc
+// JobResponse describes a completed DNS response. Status does not imply a match;
+// callers must still inspect the response code and the requested records.
 type JobResponse struct {
-	Domain	string
-	Status 	bool
-	Data 	dns.DNSData
+	Domain string
+	Status bool
+	Data   dns.DNSData
 }
 
-//GetDNSQueryResponse desc
-func GetDNSQueryResponse(fqdn string, qType uint16, dnsTimeOut int, retries int, errorLimit int, customDNSServer string) (JobResponse, error) {
-	var res JobResponse
-	res.Domain = fqdn
+// Querier allows tests to supply responses without network access.
+type Querier interface {
+	Query(context.Context, string, uint16, string) (*dns.DNSData, error)
+}
 
-	dnsClient := dns.New(dnsTimeOut, retries, errorLimit)
-	resp, err := dnsClient.Query(fqdn, qType, customDNSServer)
-	if err == nil {
-			res.Status = true
-			res.Data = *resp
-
-			return res, nil
+// GetDNSQueryResponse preserves query errors for the caller.
+func GetDNSQueryResponse(ctx context.Context, client Querier, fqdn string, qType uint16, server string) (JobResponse, error) {
+	result := JobResponse{Domain: fqdn}
+	data, err := client.Query(ctx, fqdn, qType, server)
+	if err != nil {
+		return result, fmt.Errorf("resolve %s: %w", fqdn, err)
 	}
-	
-	res.Status = false
-	return res, nil
+	if data == nil {
+		return result, fmt.Errorf("resolve %s: empty response", fqdn)
+	}
+	result.Status = true
+	result.Data = *data
+	return result, nil
 }

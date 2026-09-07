@@ -1,160 +1,156 @@
+// Package tables implements the original name generation rules.
 package tables
 
 import (
-	//"os"
-	//"fmt"
-
+	"context"
 	"strconv"
 	"strings"
 
 	def "github.com/bp0lr/dmut/defines"
-	util "github.com/bp0lr/dmut/util"
+	"github.com/bp0lr/dmut/util"
 )
 
-type dmutJob = def.DmutJob
-
-//GenerateTables desc
-func GenerateTables(job def.DmutJob, alterations []string, pList def.PermutationList) []string{
-
+// GenerateTables retains the collecting API used by the resolution workflow.
+func GenerateTables(job def.DmutJob, alterations []string, pList def.PermutationList) []string {
 	var res []string
-	
-	if(!pList.AddToDomain){
+	if !pList.AddToDomain {
 		AddToDomain(job, alterations, &res)
 	}
-
-	if(!pList.AddNumbers){
+	if !pList.AddNumbers {
 		AddNumbers(job, &res)
 	}
-
-	if(!pList.AddSeparator){
+	if !pList.AddSeparator {
 		AddSeparator(job, alterations, &res)
 	}
-
-	//IncreaseNumbers(job, &res)
-
-	//removing duplicated from job.tasks
-	res = util.RemoveDuplicatesSlice(res)
-
-	return res
+	return util.RemoveDuplicatesSlice(res)
 }
 
-//AddToDomain desc
-func AddToDomain(job dmutJob, alterations []string, res *[]string){
-
-	//	this will add each alteration to the existing domain.
-	//	for example to test some.test.com we are going to generate alt1.some.test.com and some.alt1.test.com
-	///////////////////////////////////////////////////////////////////////////////////////////////			
-	for _, alt := range alterations {
-		if(len(alt) < 1){
-			continue
+// GenerateTo emits the legacy names individually without keeping the dictionary
+// or generated results. words visits the dictionary once. Output can contain
+// duplicates; offline callers deduplicate on disk, not with an unbounded map.
+func GenerateTo(ctx context.Context, job def.DmutJob, words func(func(string) error) error, pList def.PermutationList, emit func(string) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	yield := func(name string) error {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-		
-		strSplit := strings.Split(job.Trd, ".")
-
-		if(strSplit[0] == ""){
-			fullDomain:= alt + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
-			continue
-		}
-
-		for i := 0; i <= len(strSplit); i++ {
-			val:=util.Insert(strSplit, i, alt)
-			fullDomain:= strings.Join(val, ".") + "." + job.Sld + "." + job.Tld
-			//fmt.Printf("val: %v\n", fullDomain)
-			*res = append(*res, fullDomain)
+		return emit(name)
+	}
+	if !pList.AddNumbers {
+		if err := addNumbers(job, yield); err != nil {
+			return err
 		}
 	}
-}	
-/*
-//IncreaseNumbers number
-func IncreaseNumbers(job def.DmutJob, res *[]string){
-	
-	strSplit := strings.Split(job.Trd, ".")
-	
-	for i := 0; i < len(strSplit); i++ {
-		ok, err := strconv.Atoi(strSplit[i])
-		if(err == nil){
-			fmt.Printf("test: %v | %v\n", strSplit, len(strSplit))
-			fmt.Printf("[%v] Valid: %v => %v\n", job.Domain, strSplit[i], ok);
-
-			for i = 
-			strSplit[i] = strclean+"-"+alt
-			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
-
-
-		}	
+	if pList.AddToDomain && pList.AddSeparator {
+		return ctx.Err()
 	}
-
+	if err := words(func(word string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if !pList.AddToDomain {
+			if err := addWordToDomain(job, word, yield); err != nil {
+				return err
+			}
+		}
+		if !pList.AddSeparator {
+			return addWordSeparator(job, word, yield)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return ctx.Err()
 }
-*/
 
-//AddNumbers desc
-func AddNumbers(job def.DmutJob, res *[]string){
+// AddToDomain inserts dictionary words into the domain.
+func AddToDomain(job def.DmutJob, alterations []string, res *[]string) {
+	for _, alt := range alterations {
+		_ = addWordToDomain(job, alt, collect(res))
+	}
+}
 
-	//	this will add a number to the end of each subdmain part.
-	//	for example to test some.test.com we are going to generate some1.some.test.com, some2.alt1.test.com, etc
-	///////////////////////////////////////////////////////////////////////////////////////////////		
-	for index := 0; index < 10; index++ {		
-		strSplit := strings.Split(job.Trd, ".")
+func collect(res *[]string) func(string) error {
+	return func(name string) error {
+		*res = append(*res, name)
+		return nil
+	}
+}
 
-		if(strSplit[0] == ""){
-			fullDomain:= strconv.Itoa(index) + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
-			continue
-		}
-
-		var fullDomain string			
-		for i := 0; i < len(strSplit); i++ {			
-			strclean:=strSplit[i]
-			strSplit[i] = strclean+"-"+strconv.Itoa(index)
-			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
-			
-			strSplit[i] = strclean+strconv.Itoa(index)
-			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
+func addWordToDomain(job def.DmutJob, alt string, emit func(string) error) error {
+	if alt == "" {
+		return nil
+	}
+	parts := strings.Split(job.Trd, ".")
+	if parts[0] == "" {
+		return emit(alt + "." + job.Sld + "." + job.Tld)
+	}
+	for i := 0; i <= len(parts); i++ {
+		value := util.Insert(parts, i, alt)
+		if err := emit(strings.Join(value, ".") + "." + job.Sld + "." + job.Tld); err != nil {
+			return err
 		}
 	}
-}	
+	return nil
+}
 
-//AddSeparator desc
-func AddSeparator(job def.DmutJob, alterations []string, res *[]string){
+// AddNumbers applies the legacy numeric additions.
+func AddNumbers(job def.DmutJob, res *[]string) {
+	_ = addNumbers(job, collect(res))
+}
 
-	//	this will add (clean and using a -) each alteration to each subdomain part.
-	//	for example to test some.test.com we are going to generate some-alt1.test.com, alt1-some.test.com, etc
-	///////////////////////////////////////////////////////////////////////////////////////////////
+func addNumbers(job def.DmutJob, emit func(string) error) error {
+	for index := 0; index < 10; index++ {
+		parts := strings.Split(job.Trd, ".")
+		number := strconv.Itoa(index)
+		if parts[0] == "" {
+			if err := emit(number + "." + job.Sld + "." + job.Tld); err != nil {
+				return err
+			}
+			continue
+		}
+		// Keep the cumulative changes to earlier labels made by the legacy rule.
+		for i := range parts {
+			clean := parts[i]
+			parts[i] = clean + "-" + number
+			if err := emit(strings.Join(parts, ".") + "." + job.Sld + "." + job.Tld); err != nil {
+				return err
+			}
+			parts[i] = clean + number
+			if err := emit(strings.Join(parts, ".") + "." + job.Sld + "." + job.Tld); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// AddSeparator applies the legacy concatenation rules.
+func AddSeparator(job def.DmutJob, alterations []string, res *[]string) {
 	for _, alt := range alterations {
-		if(len(alt) < 1){
-			continue
+		_ = addWordSeparator(job, alt, collect(res))
+	}
+}
+
+func addWordSeparator(job def.DmutJob, alt string, emit func(string) error) error {
+	if alt == "" {
+		return nil
+	}
+	parts := strings.Split(job.Trd, ".")
+	if parts[0] == "" {
+		return nil
+	}
+	// Keep the cumulative changes to earlier labels made by the legacy rule.
+	for i := range parts {
+		clean := parts[i]
+		for _, value := range []string{clean + "-" + alt, alt + "-" + clean, clean + alt, alt + clean} {
+			parts[i] = value
+			if err := emit(strings.Join(parts, ".") + "." + job.Sld + "." + job.Tld); err != nil {
+				return err
+			}
 		}
-
-		var fullDomain string
-
-		strSplit := strings.Split(job.Trd, ".")				
-
-		if(strSplit[0] == ""){
-			continue
-		}
-
-		for i := 0; i < len(strSplit); i++ {			
-			strclean:=strSplit[i]
-			
-			strSplit[i] = strclean+"-"+alt
-			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
-
-			strSplit[i] = alt+"-"+strclean
-			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
-
-			strSplit[i] = strclean+alt
-			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
-
-			strSplit[i] = alt+strclean
-			fullDomain= strings.Join(strSplit, ".") + "." + job.Sld + "." + job.Tld
-			*res = append(*res, fullDomain)
-		}
-	}	
+	}
+	return nil
 }

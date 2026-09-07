@@ -1,32 +1,17 @@
+// Package defines contains the inputs to the legacy mutation rules.
 package defines
 
-//DmutJob desc
+// DmutJob is a domain split into public suffix, registrable label and subdomain.
 type DmutJob struct {
-	Domain		string
-	Tld        	string
-	Sld  		string
-	Trd  		string
-	Tasks		[]string
+	Domain string
+	Tld    string
+	Sld    string
+	Trd    string
 }
 
-//Stats desc
-type Stats struct{
-	Domains int
-	Mutations int
-	Founds	int
-	FoundDomains []string
-	WorksToDo []string
-}
-
-//LoadStats desc
-type LoadStats struct{
-	Domains int
-	Valid int
-	Errors int
-}
-
-type PermutationList struct{
-	AddToDomain bool
-	AddNumbers bool
+// PermutationList contains disable switches. True disables the named rule.
+type PermutationList struct {
+	AddToDomain  bool
+	AddNumbers   bool
 	AddSeparator bool
 }

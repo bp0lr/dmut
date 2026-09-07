@@ -1,0 +1,68 @@
+name: Release artifacts
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label, for example v1.2.3'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Build and package
+        env:
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          if [[ ! "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo 'Expected a version such as v1.2.3 or v1.2.3-rc.1' >&2
+            exit 1
+          fi
+          name="dmut_${RELEASE_VERSION}_${GOOS}_${GOARCH}"
+          mkdir -p "dist/$name"
+          binary=dmut
+          if [ "$GOOS" = windows ]; then binary=dmut.exe; fi
+          go build -trimpath -ldflags "-s -w -X main.version=$RELEASE_VERSION" -o "dist/$name/$binary" .
+          cp README.md LICENSE words.txt "dist/$name/"
+          cd dist
+          if [ "$GOOS" = windows ]; then
+            zip -qr "$name.zip" "$name"
+            sha256sum "$name.zip" > "$name.sha256"
+          else
+            tar -czf "$name.tar.gz" "$name"
+            sha256sum "$name.tar.gz" > "$name.sha256"
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dmut-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
