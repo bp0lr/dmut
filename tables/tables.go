@@ -29,17 +29,41 @@ func GenerateTables(job def.DmutJob, alterations []string, pList def.Permutation
 // or generated results. words visits the dictionary once. Output can contain
 // duplicates; offline callers deduplicate on disk, not with an unbounded map.
 func GenerateTo(ctx context.Context, job def.DmutJob, words func(func(string) error) error, pList def.PermutationList, emit func(string) error) error {
+	return GenerateExplainedTo(ctx, job, words, pList, func(result GeneratedName) error {
+		return emit(result.Name)
+	})
+}
+
+// GeneratedName identifies the existing rule family and dictionary word that
+// produced a name. Multiple rules or input words can produce the same name.
+type GeneratedName struct {
+	Name string
+	Rule string
+	Word string
+}
+
+const (
+	RuleNumbers   = "numeric addition"
+	RuleInsertion = "word insertion"
+	RuleSeparator = "word concatenation / separator"
+)
+
+// GenerateExplainedTo adds provenance without changing the legacy rules or
+// retaining their results. Its output is not deduplicated.
+func GenerateExplainedTo(ctx context.Context, job def.DmutJob, words func(func(string) error) error, pList def.PermutationList, emit func(GeneratedName) error) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	yield := func(name string) error {
-		if err := ctx.Err(); err != nil {
-			return err
+	yield := func(rule, word string) func(string) error {
+		return func(name string) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			return emit(GeneratedName{Name: name, Rule: rule, Word: word})
 		}
-		return emit(name)
 	}
 	if !pList.AddNumbers {
-		if err := addNumbers(job, yield); err != nil {
+		if err := addNumbers(job, yield(RuleNumbers, "")); err != nil {
 			return err
 		}
 	}
@@ -51,12 +75,12 @@ func GenerateTo(ctx context.Context, job def.DmutJob, words func(func(string) er
 			return err
 		}
 		if !pList.AddToDomain {
-			if err := addWordToDomain(job, word, yield); err != nil {
+			if err := addWordToDomain(job, word, yield(RuleInsertion, word)); err != nil {
 				return err
 			}
 		}
 		if !pList.AddSeparator {
-			return addWordSeparator(job, word, yield)
+			return addWordSeparator(job, word, yield(RuleSeparator, word))
 		}
 		return nil
 	}); err != nil {

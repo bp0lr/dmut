@@ -49,7 +49,14 @@ jobs:
           binary=dmut
           if [ "$GOOS" = windows ]; then binary=dmut.exe; fi
           go build -trimpath -ldflags "-s -w -X main.version=$RELEASE_VERSION" -o "dist/$name/$binary" .
-          cp README.md LICENSE words.txt "dist/$name/"
+          cp README.md CHANGELOG.md LICENSE words.txt "dist/$name/"
+          # Use a host binary to generate scripts even for cross-compiled builds.
+          GOOS=linux GOARCH=amd64 go build -o "$RUNNER_TEMP/dmut-host" .
+          mkdir -p "dist/$name/completions"
+          "$RUNNER_TEMP/dmut-host" --completion bash > "dist/$name/completions/dmut.bash"
+          "$RUNNER_TEMP/dmut-host" --completion zsh > "dist/$name/completions/_dmut"
+          "$RUNNER_TEMP/dmut-host" --completion fish > "dist/$name/completions/dmut.fish"
+          "$RUNNER_TEMP/dmut-host" --completion powershell > "dist/$name/completions/dmut.ps1"
           cd dist
           if [ "$GOOS" = windows ]; then
             zip -qr "$name.zip" "$name"

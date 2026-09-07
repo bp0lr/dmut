@@ -116,3 +116,25 @@ func TestGenerateToStopsOnErrorAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestExplainedRulesIdentifyDictionaryWord(t *testing.T) {
+	job := defines.DmutJob{Trd: "test", Sld: "example", Tld: "com"}
+	var got []GeneratedName
+	err := GenerateExplainedTo(context.Background(), job, func(visit func(string) error) error {
+		return visit("stage")
+	}, defines.PermutationList{AddNumbers: true}, func(result GeneratedName) error {
+		got = append(got, result)
+		return nil
+	})
+	want := []GeneratedName{
+		{"stage.test.example.com", RuleInsertion, "stage"},
+		{"test.stage.example.com", RuleInsertion, "stage"},
+		{"test-stage.example.com", RuleSeparator, "stage"},
+		{"stage-test.example.com", RuleSeparator, "stage"},
+		{"teststage.example.com", RuleSeparator, "stage"},
+		{"stagetest.example.com", RuleSeparator, "stage"},
+	}
+	if err != nil || !slices.Equal(got, want) {
+		t.Fatalf("%v; %v", got, err)
+	}
+}

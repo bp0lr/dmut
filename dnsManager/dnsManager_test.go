@@ -55,3 +55,23 @@ func TestUnavailablePool(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUnluckySelectionStillFindsEnabledResolver(t *testing.T) {
+	p, err := New([]string{"127.0.0.1", "127.0.0.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.ReportError("127.0.0.1:53", 1)
+	p.ReportError("127.0.0.1:53", 1)
+	// Force every random attempt to choose the disabled entry. The enabled
+	// entry must still be found, regardless of random luck or pool size.
+	entry, err := p.pick(func(int) int { return 0 })
+	if err != nil || entry.Host != "127.0.0.2:53" {
+		t.Fatalf("enabled resolver lost: %v, %v", entry, err)
+	}
+	p.ReportError("127.0.0.2:53", 1)
+	p.ReportError("127.0.0.2:53", 1)
+	if _, err := p.pick(func(int) int { return 0 }); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("fully disabled pool: %v", err)
+	}
+}

@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bp0lr/dmut/dns"
 	dnsmanager "github.com/bp0lr/dmut/dnsManager"
+	"github.com/bp0lr/dmut/resolver"
 	"github.com/bp0lr/dmut/util"
 	"github.com/cheggaaa/pb/v3"
 )
@@ -45,13 +47,15 @@ func (w *checkedWriter) Err() error {
 }
 
 type application struct {
-	cfg                   config
-	out, diag             *checkedWriter
-	pool                  *dnsmanager.Pool
-	client, confirmation  *dns.Client
-	mu                    sync.Mutex
-	works                 []string
-	valid, skipped, found int
+	cfg                          config
+	out, diag                    *checkedWriter
+	pool                         *dnsmanager.Pool
+	client, confirmation         resolver.Querier
+	mu                           sync.Mutex
+	works                        []string
+	valid, skipped, found        int
+	completed                    int
+	offlineDomains, offlineNames uint64
 }
 
 func newApplication(cfg config, stdout, stderr io.Writer) *application {
@@ -65,6 +69,9 @@ func (a *application) run(ctx context.Context, stdin io.Reader) (err error) {
 	}
 	if a.cfg.UpdateDNS || a.cfg.UpdateFiles {
 		return a.updateFiles(ctx)
+	}
+	if a.cfg.Preview {
+		return a.preview(ctx)
 	}
 	if a.cfg.SaveOnly {
 		return a.saveGenerated(ctx, stdin)
@@ -100,10 +107,20 @@ func (a *application) run(ctx context.Context, stdin io.Reader) (err error) {
 		if err != nil {
 			return err
 		}
-		a.client = dns.New(a.pool, a.cfg.TimeoutMS, a.cfg.Retries, a.cfg.ErrorLimit)
+		if a.client == nil {
+			a.client = dns.New(a.pool, a.cfg.TimeoutMS, a.cfg.Retries, a.cfg.ErrorLimit)
+		}
 		// Preserve the existing confirmation settings.
-		a.confirmation = dns.New(a.pool, 500, 3, 10)
+		if a.confirmation == nil {
+			a.confirmation = dns.New(a.pool, 500, 3, 10)
+		}
 	}
+	started := time.Now()
+	phase := "domain and wildcard checks"
+	outputOpened := false
+	defer func() {
+		a.reportDNSRun(err, phase, len(domains), len(words), outputOpened, time.Since(started))
+	}()
 	if err := runJobs(ctx, 30, domains, func(ctx context.Context, domain string) error {
 		names, skipped, err := a.generateTable(ctx, domain, words)
 		if err != nil {
@@ -121,12 +138,14 @@ func (a *application) run(ctx context.Context, stdin io.Reader) (err error) {
 	}); err != nil {
 		return err
 	}
+	phase = "opening output"
 	var output *os.File
 	if a.cfg.Output != "" {
 		output, err = os.OpenFile(a.cfg.Output, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 		if err != nil {
 			return fmt.Errorf("open output: %w", err)
 		}
+		outputOpened = true
 		defer func() { err = errors.Join(err, output.Close()) }()
 	}
 	var bar *pb.ProgressBar
@@ -137,19 +156,20 @@ func (a *application) run(ctx context.Context, stdin io.Reader) (err error) {
 	if a.cfg.Verbose {
 		fmt.Fprintf(a.diag, "Domains: %d; valid: %d; skipped: %d; generated: %d\n", len(domains), a.valid, a.skipped, len(a.works))
 	}
+	phase = "DNS resolution"
 	if err := runJobs(ctx, a.cfg.Workers, a.works, func(ctx context.Context, domain string) error {
 		if bar != nil {
 			defer bar.Increment()
 		}
-		return a.processDNS(ctx, domain, output)
+		if err := a.processDNS(ctx, domain, output); err != nil {
+			return err
+		}
+		a.mu.Lock()
+		a.completed++
+		a.mu.Unlock()
+		return nil
 	}); err != nil {
 		return err
-	}
-	if a.cfg.Stats {
-		for _, entry := range a.pool.Snapshot() {
-			fmt.Fprintf(a.diag, "Resolver: %s; errors: %d; enabled: %t\n", entry.Host, entry.Errors, entry.Status)
-		}
-		fmt.Fprintf(a.diag, "Domains: %d; words: %d; generated: %d; found: %d\n", len(domains), len(words), len(a.works), a.found)
 	}
 	return ctx.Err()
 }
