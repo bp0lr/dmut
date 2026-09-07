@@ -55,6 +55,8 @@ Remove-Item Env:DMUT_TEST_LARGE_FILES
 | `config.go` | Flags, legacy aliases and argument validation |
 | `app.go` | Invocation state, cancellation, file inputs and worker lifecycle |
 | `offline.go` | Streaming offline input, on-disk dictionary and output transaction |
+| `preview.go`, `completion.go` | Offline examples, rule explanations and shell completion |
+| `diagnostics.go` | Completion/error summaries after workers and output cleanup |
 | `internal/linesort/` | Bounded-buffer disk sorting and per-domain deduplication |
 | `processing.go` | Existing domain workflow and result presentation |
 | `dns/` | Context-aware DNS client and response data |
@@ -76,6 +78,11 @@ When changing flags, update both `--help` and the README and test any retained
 aliases. When changing file handling, test failed writes and preservation of
 existing data. New tests should cover behavior and meaningful failure cases.
 
+Shell completion is generated from the flag definitions. Check emitted scripts
+in their target shells when changing the generator. Preview uses the same rule
+implementation as normal generation; keep the captured legacy-output fixtures
+passing and preserve the distinction between a sample and a full job.
+
 ## Release procedure
 
 1. Update the changelog and confirm that CI passes for the intended commit.
@@ -87,7 +94,8 @@ existing data. New tests should cover behavior and meaningful failure cases.
    Linux, `shasum -a 256 -c FILE.sha256` on macOS, or compare the hash from
    `Get-FileHash FILE.zip -Algorithm SHA256` in PowerShell.
 4. Extract the archive and check `dmut --version` and `dmut --help` on the target
-   platform. Archives include the binary, README, license and starter dictionary.
+   platform. Archives include the binary, README, changelog, license, starter
+   dictionary and shell completion scripts.
 5. Publish a GitHub Release separately, attached to the reviewed commit's version
    tag, and upload the archives and checksum files. Include migration notes.
 

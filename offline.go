@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/bp0lr/dmut/internal/linesort"
 	"github.com/bp0lr/dmut/tables"
@@ -16,12 +17,14 @@ import (
 )
 
 func (a *application) saveGenerated(ctx context.Context, stdin io.Reader) error {
+	started := time.Now()
 	if err := util.ReplaceFileContext(ctx, a.cfg.SaveTo, func(out io.Writer) error {
 		return a.generateOffline(ctx, stdin, out)
 	}); err != nil {
+		fmt.Fprintf(a.diag, "Offline generation stopped after %d complete domain(s); destination %s was not replaced.\n", a.offlineDomains, a.cfg.SaveTo)
 		return fmt.Errorf("save generated names: %w", err)
 	}
-	_, err := fmt.Fprintf(a.diag, "Generated names saved to %s\n", a.cfg.SaveTo)
+	_, err := fmt.Fprintf(a.diag, "Generated %d names from %d domain(s) in %.2fs; saved to %s\n", a.offlineNames, a.offlineDomains, time.Since(started).Seconds(), a.cfg.SaveTo)
 	return err
 }
 
@@ -48,6 +51,7 @@ func (a *application) generateOffline(ctx context.Context, stdin io.Reader, out 
 			return fmt.Errorf("process %q: %w", domain, err)
 		}
 		domains++
+		a.offlineDomains++
 		return nil
 	}
 	if a.cfg.Domain != "" {
@@ -119,6 +123,9 @@ func (a *application) writeOfflineDomain(ctx context.Context, domain, dictionary
 		return err
 	}
 	// A fresh sorter per input domain preserves the legacy deduplication scope.
-	_, err = sorter.WriteTo(ctx, out)
+	count, err := sorter.WriteTo(ctx, out)
+	if err == nil {
+		a.offlineNames += count
+	}
 	return err
 }

@@ -30,6 +30,29 @@ func New(pool *dnsmanager.Pool, timeout, retries, errorLimit int) *Client {
 	return &Client{pool: pool, dnsTimeOut: timeout, maxRetries: retries, errorLimit: errorLimit}
 }
 
+// QueryError preserves the failed query's settings and underlying cause.
+type QueryError struct {
+	Host, Server string
+	Type         uint16
+	Attempts     int
+	TimeoutMS    int
+	Err          error
+}
+
+func (e *QueryError) Error() string {
+	kind := dns.TypeToString[e.Type]
+	if kind == "" {
+		kind = fmt.Sprintf("TYPE%d", e.Type)
+	}
+	server := e.Server
+	if server == "" {
+		server = "none selected"
+	}
+	return fmt.Sprintf("DNS %s query for %s failed after %d attempt(s) (timeout %dms; last resolver %s): %v", kind, e.Host, e.Attempts, e.TimeoutMS, server, e.Err)
+}
+
+func (e *QueryError) Unwrap() error { return e.Err }
+
 // Query sends one record query with cancellation support.
 func (c *Client) Query(ctx context.Context, host string, requestType uint16, customDNSServer string) (*DNSData, error) {
 	if err := ctx.Err(); err != nil {
@@ -51,6 +74,10 @@ func (c *Client) Query(ctx context.Context, host string, requestType uint16, cus
 	msg.SetQuestion(name, requestType)
 	udp := dns.Client{Net: "udp", Timeout: time.Duration(c.dnsTimeOut) * time.Millisecond}
 	var lastErr error
+	var lastServer string
+	failure := func(attempts int, err error) error {
+		return &QueryError{Host: host, Server: lastServer, Type: requestType, Attempts: attempts, TimeoutMS: c.dnsTimeOut, Err: err}
+	}
 	for i := 0; i < c.maxRetries; i++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -58,14 +85,15 @@ func (c *Client) Query(ctx context.Context, host string, requestType uint16, cus
 		server := customDNSServer
 		if server == "" {
 			if c.pool == nil {
-				return nil, dnsmanager.ErrUnavailable
+				return nil, failure(i, dnsmanager.ErrUnavailable)
 			}
 			entry, err := c.pool.Pick()
 			if err != nil {
-				return nil, err
+				return nil, failure(i, errors.Join(err, lastErr))
 			}
 			server = entry.Host
 		}
+		lastServer = server
 		resp, _, err := udp.ExchangeContext(ctx, msg, server)
 		if err == nil && resp != nil && resp.Truncated {
 			tcp := dns.Client{Net: "tcp", Timeout: udp.Timeout}
@@ -81,7 +109,7 @@ func (c *Client) Query(ctx context.Context, host string, requestType uint16, cus
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
-			lastErr = fmt.Errorf("query %s using %s: %w", host, server, err)
+			lastErr = err
 			if c.pool != nil {
 				c.pool.ReportError(server, c.errorLimit)
 			}
@@ -97,7 +125,7 @@ func (c *Client) Query(ctx context.Context, host string, requestType uint16, cus
 		data.dedupe()
 		return data, nil
 	}
-	return nil, lastErr
+	return nil, failure(c.maxRetries, lastErr)
 }
 
 // DNSData contains the records and metadata returned by a DNS query.

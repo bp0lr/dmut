@@ -39,6 +39,20 @@ jobs:
         env:
           DMUT_TEST_LARGE_FILES: '1'
         run: go test -run '^TestOfflineMemoryBound$' -count=1 -v .
+      - name: Unix shell completion
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends zsh fish
+          go build -o "$RUNNER_TEMP/dmut-completion" .
+          bash scripts/check-completion.sh "$RUNNER_TEMP/dmut-completion"
+      - name: PowerShell completion
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          go build -o "$env:RUNNER_TEMP/dmut-completion.exe" .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/check-completion.ps1 -Binary "$env:RUNNER_TEMP/dmut-completion.exe"
 
   hygiene:
     runs-on: ubuntu-latest

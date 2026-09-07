@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.0.0 - 2026-09-07
 
 ### Changed
 
@@ -23,6 +23,11 @@
 
 ### Fixed
 
+- Address #20's misleading resolver failures: check the whole pool before
+  reporting it unavailable, retain query type/resolver/attempts/cause, and show
+  completion and resolver summaries on failed or canceled runs. Real DNS
+  connectivity failures still stop the run; the original report's external
+  network conditions could not be reproduced from the supplied information.
 - Fix #15's offline `--save-gen` memory growth: stream domain input, snapshot the
   dictionary on disk, emit names individually and deduplicate with an external
   merge sort. Large inputs complete without retaining the whole job in RAM or
@@ -41,6 +46,10 @@
 
 ### Added
 
+- Offline `--preview` and `--explain`, sampling dictionary entries and examples
+  per existing rule family with `--preview-limit` (default 5).
+- Final DNS and offline summaries, examples in help, and generated Bash, Zsh,
+  Fish and PowerShell completion scripts included in release archives.
 - `--version`, explicit exit statuses and cancellation with worker cleanup.
 - Local regression tests for file preservation, errors, CLI compatibility and
   concurrent state.

@@ -43,15 +43,25 @@ func New(hosts []string) (*Pool, error) {
 	return p, nil
 }
 
-// Pick retains the existing bounded random selection policy.
+// Pick first uses the existing random selection policy, then checks every entry
+// before reporting that the pool is unavailable.
 func (p *Pool) Pick() (DNSServerEntry, error) {
+	return p.pick(rand.IntN)
+}
+
+func (p *Pool) pick(choose func(int) int) (DNSServerEntry, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	if len(p.servers) == 0 {
 		return DNSServerEntry{}, ErrUnavailable
 	}
 	for i := 0; i < 100; i++ {
-		entry := p.servers[rand.IntN(len(p.servers))]
+		entry := p.servers[choose(len(p.servers))]
+		if entry.Status {
+			return entry, nil
+		}
+	}
+	for _, entry := range p.servers {
 		if entry.Status {
 			return entry, nil
 		}

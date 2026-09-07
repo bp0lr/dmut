@@ -9,6 +9,13 @@ reporting, and configurable DNS resolvers.
 
 ## Requirements and installation
 
+Download a binary for your operating system and architecture from
+[GitHub Releases](https://github.com/bp0lr/dmut/releases/latest). No Go installation
+is needed to run a release binary. Archives include the starter dictionary and
+shell completion scripts; each archive has a separate SHA-256 checksum file.
+
+To build from source:
+
 Building this checkout requires **Go 1.27.1 or newer**. The Go command can select
 the required toolchain automatically when toolchain downloads are enabled.
 
@@ -38,6 +45,38 @@ go build -o dmut.exe .
 
 The executable remains at the module root, so the installation path is unchanged.
 
+## Preview the rules offline
+
+Start with one example domain:
+
+~~~sh
+dmut -u test.example.com -d words.txt --preview --explain
+~~~
+
+This prints a small sample with columns for the name, rule family and dictionary
+word. It makes no DNS queries and does not create or replace output files.
+Omit **--explain** to print just the example names.
+
+**--preview-limit N** reads the first N nonempty dictionary entries and shows at
+most N distinct examples per enabled rule family (default 5). Duplicate names
+from different families may appear so you can see the overlap. The sample follows
+generation order, not the sorted order used by **--save-gen**. It is neither a
+total count nor validation of the rest of the dictionary. Use **--url** to select
+one domain; preview does not read domains from stdin.
+
+For example, with `stage` as the first dictionary entry:
+
+~~~text
+NAME                    RULE                            WORD
+test-0.example.com      numeric addition                -
+stage.test.example.com  word insertion                  "stage"
+test-stage.example.com  word concatenation / separator  "stage"
+~~~
+
+This example uses **--preview-limit 1**. The existing **--disable-...** options
+also apply to previews. A rule explanation identifies the family and input word;
+the legacy cumulative behavior for multi-label subdomains is retained.
+
 ## Quick start: generate a file offline
 
 The repository includes [words.txt](words.txt), a small starter dictionary.
@@ -51,6 +90,10 @@ dmut -u test.example.com -d words.txt --save-gen --save-to generated.txt
 This writes generated names without DNS queries. The destination is replaced
 only after the new file has been written successfully. The output option and
 resolver configuration are unused in this mode.
+
+A summary on stderr reports the number of saved names, completed domains,
+elapsed time and destination. On a reported failure, it states that the
+destination was not replaced.
 
 Offline generation reads domains one at a time and snapshots the normalized
 dictionary to disk. Generated names are sorted and deduplicated in temporary
@@ -160,6 +203,10 @@ Run **dmut --help** for the authoritative reference.
 | -o, --output | none | Append results to a file |
 | --save-gen | false | Write generated names without DNS queries, then exit |
 | --save-to | generated.txt | Destination for --save-gen |
+| --preview | false | Preview examples offline for one --url domain |
+| --preview-limit | 5 | Dictionary entries sampled and maximum examples per rule |
+| --explain | false | Show the rule family and word in preview output |
+| --completion | | Print completion for bash, zsh, fish or powershell |
 | --show-ip | false | Include CNAME and IPv4 records |
 | --show-stats | false | Write job statistics to stderr |
 | --use-pb | false | Write a progress bar to stderr |
@@ -176,6 +223,30 @@ The old spellings **--dnsFile**, **--dnsServers** and **--dns-errorLimit** remai
 aliases. Invalid numeric arguments now produce an error instead of silently
 reverting to defaults.
 
+## Shell completion
+
+Load completion for the current shell session:
+
+~~~sh
+# Bash
+source <(dmut --completion bash)
+
+# Fish
+dmut --completion fish | source
+~~~
+
+~~~powershell
+# PowerShell
+dmut --completion powershell | Out-String | Invoke-Expression
+~~~
+
+For Zsh, save `dmut --completion zsh` as `_dmut` in a directory on your `fpath`,
+then run `autoload -Uz compinit; compinit`. Release archives include the same
+scripts in `completions/`. Bash and PowerShell suggest option names; Zsh and Fish
+also describe options and complete file arguments. These commands do not change
+your shell profile; add the appropriate loader there to enable completion in
+future sessions.
+
 ## Exit codes and cancellation
 
 | Code | Meaning |
@@ -189,6 +260,24 @@ A DNS transport failure after the configured attempts now stops the run and
 returns an error, rather than silently reporting success with missing work.
 Workers are joined before exit; canceled downloads preserve the previous file.
 Errors writing results or closing the output file are also reported.
+
+Every DNS run reports checked/skipped domains, generated names, completed and
+incomplete DNS jobs, matches and elapsed time on stderr. If generation stops
+early, the generated count is explicitly marked partial. **--show-stats** adds
+per-resolver error counts; failures always include a pool summary.
+
+DNS errors identify the query type, domain, attempts, timeout and last resolver,
+while preserving the underlying cause (for example a timeout or SERVFAIL).
+Running out of attempts for one query is different from having no enabled
+resolver. Resolver selection now checks the full pool before declaring it
+unavailable, even when its initial random choices all hit disabled entries.
+
+When diagnosing a failure, check the reported resolver and underlying error,
+then your configured resolver file and network access. Wildcard checks and
+confirmation identify their fixed resolver separately; it may not belong to the
+configured pool. A genuine connectivity or server failure can still stop a run.
+The changes for issue #20 improve correctness and diagnosis, not the availability
+of external DNS servers.
 
 ## Existing behavior and limitations
 

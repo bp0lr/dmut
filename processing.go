@@ -25,7 +25,7 @@ func (a *application) generateTable(ctx context.Context, domain string, words []
 	if !a.cfg.SaveOnly {
 		wildcard, err := a.checkWildcard(ctx, job)
 		if err != nil {
-			return nil, false, err
+			return nil, false, fmt.Errorf("wildcard check (fixed resolver 8.8.8.8:53): %w", err)
 		}
 		if wildcard {
 			if a.cfg.Verbose {
@@ -81,7 +81,7 @@ func (a *application) processResponse(ctx context.Context, domain string, result
 	}
 	retest, err := resolver.GetDNSQueryResponse(ctx, a.confirmation, domain, kind, "8.8.8.8:53")
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("result confirmation (fixed resolver 8.8.8.8:53): %w", err)
 	}
 	if !retest.Status || retest.Data.StatusCode != "NOERROR" {
 		return false, nil
