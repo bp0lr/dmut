@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/cheggaaa/pb/v3 v3.2.1
 	github.com/miekg/dns v1.1.73
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/weppos/publicsuffix-go v0.50.3
 )
 
